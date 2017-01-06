@@ -1,3 +1,4 @@
+![Python version](https://img.shields.io/badge/python-3.5-brightgreen.svg)
 # FeedsBot for Telegram written on Python
 Forwarding new articles from RSS/Atom feeds to Telegram.
 
@@ -14,7 +15,7 @@ feeds:
   - url    : 'https://example.site/feed2.rss'
     id     : 'your_telegram_id'
 ```
-... and execute script:  
+... and execute script  
 ```python
 python app.py
 ```
