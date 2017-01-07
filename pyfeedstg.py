@@ -1,6 +1,6 @@
 import asyncio
-import logging
 import html
+import logging
 
 import feedparser
 import telepot
@@ -82,6 +82,7 @@ class FeedForwarder(object):
             await asyncio.sleep(self.delay)
             rssNewEntries = self.getUpdates()
             if len(rssNewEntries) > 0:
+                logging.info('Get {} new entries from "{}"'.
                              format(len(rssNewEntries), self.url))
             for entry in rssNewEntries:
                     self.sendTelegram(self.userId,
