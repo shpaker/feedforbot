@@ -12,6 +12,8 @@ if __name__ == '__main__':
                         help='Choose file with bot\'s configuration')
     parser.add_argument('-d', '--debug', action='store_true',
                         help='Switch logging to DEBUG')
+    parser.add_argument('-l', '--last', action='store_true',
+                        help='Send last entry in feed')
     args = parser.parse_args()
 
     logging.basicConfig(format='%(asctime)s [%(levelname)-8s] %(message)s')
@@ -23,6 +25,6 @@ if __name__ == '__main__':
 
     logging.info('Start server with "{}" configuration'.format(args.config))
     try:
-        pyfeedstg.Server(filename=args.config).run()
+        pyfeedstg.Server(filename=args.config, sendLastEntry=args.last).run()
     except Exception as err:
         logging.error('ERROR: {}'.format(err))

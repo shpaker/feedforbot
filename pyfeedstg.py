@@ -9,8 +9,9 @@ import yaml
 
 
 class Server(object):
-    def __init__(self, filename='config.yml'):
+    def __init__(self, filename='config.yml', sendLastEntry=False):
         self.filename = filename
+        self.sendLastEntry = sendLastEntry
         try:
             with open(filename, 'r', encoding='utf-8') as stream:
                 self.config = yaml.load(stream)
@@ -22,7 +23,8 @@ class Server(object):
         for feed in self.config['feeds']:
             forwarder = FeedForwarder(token=self.config['token'],
                                       url=feed['url'],
-                                      userId=feed['id'])
+                                      userId=feed['id'],
+                                      sendLastEntry=self.sendLastEntry)
             if 'delay' in feed:
                 forwarder.delay = feed['delay']
             if 'format' in feed:
@@ -37,13 +39,15 @@ class FeedForwarder(object):
     def __init__(self, token, url, userId,
                  delay=600,
                  customFormat='<b>$title$</b>\n$url$',
-                 telegramPreview=True):
+                 telegramPreview=True,
+                 sendLastEntry=False):
         self.bot = telepot.Bot(token)
         self.url = url
         self.userId = userId
         self.delay = delay
         self.format = customFormat
         self.telegramPreview = telegramPreview
+        self.sendLastEntry = sendLastEntry
         self.feed = feedparser.parse(url)
         self.title = self.feed['feed']['title']
 
@@ -87,7 +91,7 @@ class FeedForwarder(object):
             templateDict['tags'] = html.escape(', '.join(tags))
 
         outputText = Template(self.customFormat).safe_substitute(templateDict)
-        logging.debug('Send to "{}": "{}"'.format(self.userId, outputText))
+        logging.info('Send to "{}": "{}"'.format(self.userId, outputText))
         disablePagePreview = not self.telegramPreview
         try:
             self.bot.sendMessage(self.userId,
@@ -100,7 +104,8 @@ class FeedForwarder(object):
     async def run(self):
         logging.info('Start listening "{}" on "{}"'.format(self.title,
                                                            self.url))
-        self.sendEntry(self.feed['entries'][0])
+        if self.sendLastEntry:
+            self.sendEntry(self.feed['entries'][0])
         while True:
             await asyncio.sleep(self.delay)
             rssNewEntries = self.getUpdates()
