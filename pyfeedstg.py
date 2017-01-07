@@ -38,7 +38,7 @@ class Server(object):
 class FeedForwarder(object):
     def __init__(self, token, url, userId,
                  delay=600,
-                 customFormat='<b>$title$</b>\n$url$',
+                 customFormat='<b>$title</b>\n$url',
                  telegramPreview=True,
                  sendLastEntry=False):
         self.bot = telepot.Bot(token)
