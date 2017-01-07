@@ -31,12 +31,11 @@ class Server(object):
                 forwarder.customFormat = feed['format'].replace('\\n', '\n')
             if 'preview' in feed:
                 forwarder.telegramPreview = feed['preview']
-
             asyncio.ensure_future(forwarder.run())
         loop.run_forever()
 
 
-class FeedForwarder:
+class FeedForwarder(object):
     def __init__(self, token, url, userId,
                  delay=600,
                  customFormat='<b>$title$</b>\n$url$',
@@ -56,8 +55,9 @@ class FeedForwarder:
         newEntries = []
         updatedFeed = feedparser.parse(self.url)
         if len(updatedFeed["entries"]) > 0:
-            logging.debug("Getting new {0} records, old feed contains {1}"
+            logging.debug('Get {} records from "{}", old feed contains {}'
                           .format(len(updatedFeed['entries']),
+                                  self.url,
                                   len(self.feed['entries'])))
             for newEntry in updatedFeed['entries']:
                 isNewEntry = True
@@ -70,22 +70,19 @@ class FeedForwarder:
                 #     newEntries.append(entry)
             self.feed = updatedFeed
         else:
-            logging.warning("Getting empty feed")
+            logging.warning('Get empty feed from "{}"'.format(self.url))
         return newEntries
 
     async def run(self):
-        logging.info('Start listening "{}"'.format(self.title))
+        logging.info('Start listening "{}" on "{}"'.format(self.title,
+                                                           self.url))
         self.sendTelegram(self.userId,
                           self.prepareMessage(self.feed["entries"][0]))
         while True:
             await asyncio.sleep(self.delay)
             rssNewEntries = self.getUpdates()
             if len(rssNewEntries) > 0:
-                logging.info("Get new {0} RSS entries from {1}".
                              format(len(rssNewEntries), self.url))
-            else:
-                logging.debug("Empty response {0}".
-                              format(self.url))
             for entry in rssNewEntries:
                     self.sendTelegram(self.userId,
                                       self.prepareMessage(entry))
@@ -106,15 +103,13 @@ class FeedForwarder:
             text = text.replace('$tags$', html.escape(', '.join(tags)))
         return text
 
-    def sendTelegram(self, id, text, textFormat="HTML"):
-        logging.debug("Sending \"{0}\" to {1}"
-                      .format(text, id))
-        disableWebPagePreview = not self.telegramPreview
+    def sendTelegram(self, id, text, textFormat='HTML'):
+        logging.debug('Sending to {}: "{}"'.format(id, text))
+        disablePagePreview = not self.telegramPreview
         try:
             self.bot.sendMessage(id,
                                  text,
                                  parse_mode=textFormat,
-                                 disable_web_page_preview=disableWebPagePreview
-                                 )
+                                 disable_web_page_preview=disablePagePreview)
         except Exception as err:
             logging.warning(err)
