@@ -22,4 +22,7 @@ if __name__ == '__main__':
         logger.setLevel(level=logging.INFO)
 
     logging.info('Start server with "{}" configuration'.format(args.config))
-    pyfeedstg.Server(filename=args.config).run()
+    try:
+        pyfeedstg.Server(filename=args.config).run()
+    except Exception as err:
+        logging.error('ERROR: {}'.format(err))

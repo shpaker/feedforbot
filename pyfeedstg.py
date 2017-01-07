@@ -13,12 +13,9 @@ class Server(object):
         self.filename = filename
         try:
             with open(filename, 'r', encoding='utf-8') as stream:
-                try:
-                    self.config = yaml.load(stream)
-                except yaml.YAMLError as err:
-                    logging.error(err)
-        except OSError as err:
-            logging.error(err)
+                self.config = yaml.load(stream)
+        except Exception:
+            raise
 
     def run(self):
         loop = asyncio.get_event_loop()
@@ -74,7 +71,7 @@ class FeedForwarder(object):
             logging.warning('Get empty feed from "{}"'.format(self.url))
         return newEntries
 
-    def sendEntry(self, id, entry):
+    def sendEntry(self, entry):
         tags = []
         if 'tags' in entry:
             for tag in entry['tags']:
@@ -88,10 +85,10 @@ class FeedForwarder(object):
                             url=entry['id'])
 
         outputText = Template(self.customFormat).safe_substitute(templateDict)
-        logging.info('Send to "{}": "{}"'.format(id, outputText))
+        logging.debug('Send to "{}": "{}"'.format(self.userId, outputText))
         disablePagePreview = not self.telegramPreview
         try:
-            self.bot.sendMessage(id,
+            self.bot.sendMessage(self.userId,
                                  outputText,
                                  parse_mode='HTML',
                                  disable_web_page_preview=disablePagePreview)
@@ -101,12 +98,12 @@ class FeedForwarder(object):
     async def run(self):
         logging.info('Start listening "{}" on "{}"'.format(self.title,
                                                            self.url))
-        self.sendEntry(self.userId, self.feed["entries"][0])
+        self.sendEntry(self.feed['entries'][0])
         while True:
             await asyncio.sleep(self.delay)
             rssNewEntries = self.getUpdates()
             if len(rssNewEntries) > 0:
-                logging.info('Get {} new entries from "{}"'.
-                             format(len(rssNewEntries), self.url))
+                logging.info('Get {} new entries from "{}"'
+                             .format(len(rssNewEntries), self.url))
             for entry in rssNewEntries:
-                    self.sendEntry(self.userId, entry)
+                    self.sendEntry(entry)
