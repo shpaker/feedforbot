@@ -11,7 +11,7 @@ feeds:
     id     : '@your_channel'
     delay  : 300   # Optional. 600 by default
     preview: False # Optional. True by default 
-    format : '<a href="$url$">$title$</a>\n<b>Tags:</b> $tags$\n<b>Author:</b> $author$' # Optional. '<b>$title$</b>\n$url$' by default
+    format : '<a href="$url">$title</a>\n<b>Author:</b> $author' # Optional. '<b>$title</b>\n$url' by default
   - url    : 'https://example.site/feed2.rss'
     id     : 'your_telegram_id'
 ```
@@ -19,3 +19,14 @@ feeds:
 ```python
 python app.py
 ```
+Other options
+```python
+python app.py -h
+```
+##Avialable format options
+* $author
+* $description
+* $tags
+* $time
+* $title
+* $url
