@@ -77,12 +77,14 @@ class FeedForwarder(object):
             for tag in entry['tags']:
                 tags.append(tag['term'])
 
-        templateDict = dict(author=html.escape(entry['author']),
-                            description=html.escape(entry['summary']),
-                            tags=html.escape(', '.join(tags)),
-                            time=entry['published'],
-                            title=html.escape(entry['title']),
-                            url=entry['id'])
+        templateDict = {'description': html.escape(entry['summary']),
+                        'time': entry['published'],
+                        'title': html.escape(entry['title']),
+                        'url': entry['id']}
+        if 'author' in entry:
+            templateDict['author'] = html.escape(entry['author'])
+        if 'tags' in entry:
+            templateDict['tags'] = html.escape(', '.join(tags))
 
         outputText = Template(self.customFormat).safe_substitute(templateDict)
         logging.debug('Send to "{}": "{}"'.format(self.userId, outputText))
