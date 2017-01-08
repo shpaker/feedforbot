@@ -1,7 +1,7 @@
 from pyfeedstg import FeedForwarder
 
 
-token = '303033948:AAERr7AR2WkrBHG_cDd8oabs3MChEBSenLE'
+token = os.environ['TOKEN']
 url = 'https://habrahabr.ru/rss/all/'
 userId = '9429534'
 
