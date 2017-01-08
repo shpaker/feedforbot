@@ -1,4 +1,5 @@
 ![Python version](https://img.shields.io/badge/python-3.5-brightgreen.svg)
+[![Build Status](https://travis-ci.org/shpaker/pyFeedsTgBot.svg?branch=master)](https://travis-ci.org/shpaker/pyFeedsTgBot)  
 # FeedsBot for Telegram written on Python
 Forwarding new articles from RSS/Atom feeds to Telegram.
 
