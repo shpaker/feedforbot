@@ -90,7 +90,7 @@ class FeedForwarder(object):
         if 'tags' in entry:
             templateDict['tags'] = html.escape(', '.join(tags))
 
-        outputText = Template(self.customFormat).safe_substitute(templateDict)
+        outputText = Template(self.format).safe_substitute(templateDict)
         logging.info('Send to "{}": "{}"'.format(self.userId, outputText))
         disablePagePreview = not self.telegramPreview
         try:
@@ -98,14 +98,17 @@ class FeedForwarder(object):
                                  outputText,
                                  parse_mode='HTML',
                                  disable_web_page_preview=disablePagePreview)
-        except Exception as err:
-            logging.warning(err)
+        except Exception:
+            raise
 
     async def run(self):
         logging.info('Start listening "{}" on "{}"'.format(self.title,
                                                            self.url))
         if self.sendLastEntry:
-            self.sendEntry(self.feed['entries'][0])
+            try:
+                self.sendEntry(self.feed['entries'][0])
+            except Exception as err:
+                logging.warning(err)
         while True:
             await asyncio.sleep(self.delay)
             rssNewEntries = self.getUpdates()
@@ -113,4 +116,7 @@ class FeedForwarder(object):
                 logging.info('Get {} new entries from "{}"'
                              .format(len(rssNewEntries), self.url))
             for entry in rssNewEntries:
+                try:
                     self.sendEntry(entry)
+                except Exception as err:
+                    logging.warning(err)
