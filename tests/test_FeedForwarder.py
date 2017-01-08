@@ -1,6 +1,6 @@
 import os
 import sys
-sys.path.append('..')
+sys.path.append(os.path.join(sys.path[0], '../'))
 from pyfeedstg import FeedForwarder
 
 
