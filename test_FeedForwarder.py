@@ -1,3 +1,5 @@
+import os
+
 from pyfeedstg import FeedForwarder
 
 
