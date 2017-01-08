@@ -1,37 +1,25 @@
-import os
-import sys
-sys.path.append(os.path.join(sys.path[0], '../'))
 from pyfeedstg import FeedForwarder
 
 
-token = os.environ['TOKEN']
-url = 'http://127.0.0.1:8888'
+token = '303033948:AAERr7AR2WkrBHG_cDd8oabs3MChEBSenLE'
+url = 'https://habrahabr.ru/rss/all/'
 userId = '9429534'
 
 
-def restoreServer():
-    while True:
-        forwarder = FeedForwarder(token, url, userId)
-        if len(forwarder.feed['entries']) == 4:
-            break
-
-
 def test_FeedForwarder():
-    restoreServer()
     forwarder = FeedForwarder(token, url, userId)
     assert len(forwarder.feed['entries']) > 0
-    assert forwarder.title == 'Test feed'
+    assert forwarder.title is forwarder.feed['feed']['title']
 
 
 # def test_FeedForwarder_getUpdates():
-#     restoreServer()
-#     forwarder = FeedForwarder(token, url, userId)
-#     updates = forwarder.getUpdates()
-#     assert len(updates) > 0
-#     forwarder.getUpdates()
+#     pass
 
 
 def test_FeedForwarder_sendEntry():
-    restoreServer()
     forwarder = FeedForwarder(token, url, userId)
     forwarder.sendEntry(forwarder.feed['entries'][0])
+
+
+# def test_Server(self, filename='test_config.yml'):
+#     pass

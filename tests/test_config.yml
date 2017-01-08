@@ -1,6 +1,0 @@
-token: 'YOUR_SECRET_TELEGRAM_TOKEN'
-feeds:
-  - url    : 'https://127.0.0.1:8888'
-    id     : '9429534'
-    delay  : 60
-    format : '$author \n $description \n $tags \n $time \n $title $url'
