@@ -81,10 +81,16 @@ class FeedForwarder(object):
             for tag in entry['tags']:
                 tags.append(tag['term'])
 
-        templateDict = {'description': html.escape(entry['summary']),
-                        'time': entry['published'],
-                        'title': html.escape(entry['title']),
-                        'url': entry['id']}
+        templateDict = {}
+
+        if 'summary' in entry:
+            templateDict['description'] = html.escape(entry['summary'])
+        if 'published' in entry:
+            templateDict['time'] = html.escape(entry['published'])
+        if 'title' in entry:
+            templateDict['title'] = html.escape(entry['title'])
+        if 'id' in entry:
+            templateDict['url'] = html.escape(entry['id'])
         if 'author' in entry:
             templateDict['author'] = html.escape(entry['author'])
         if 'tags' in entry:
