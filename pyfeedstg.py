@@ -89,8 +89,12 @@ class FeedForwarder(object):
             templateDict['time'] = html.escape(entry['published'])
         if 'title' in entry:
             templateDict['title'] = html.escape(entry['title'])
+
         if 'id' in entry:
             templateDict['url'] = html.escape(entry['id'])
+        elif 'link' in entry:
+            templateDict['url'] = html.escape(entry['link'])
+
         if 'author' in entry:
             templateDict['author'] = html.escape(entry['author'])
         if 'tags' in entry:
