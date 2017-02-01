@@ -49,7 +49,7 @@ class FeedForwarder(object):
         self.telegramPreview = telegramPreview
         self.sendLastEntry = sendLastEntry
         self.feed = feedparser.parse(url)
-        self.title = self.feed['feed']['title']
+        # self.title = self.feed['feed']['title']
 
     # Загрузка нового RSS и сравнение с загруженной ранее
     # Возвращает массив новых записей newEntries
