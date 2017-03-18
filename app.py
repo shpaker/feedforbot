@@ -1,11 +1,12 @@
 import argparse
 import logging
 
-import pyfeedstg
+from pyfeedstg import Server
 
 
 if __name__ == '__main__':
     appDescription = 'Forwarding articles from RSS/Atom feeds to Telegram'
+ 
     parser = argparse.ArgumentParser(description=appDescription)
     parser.add_argument('-c', '--config',
                         default='config.yml',
@@ -25,6 +26,6 @@ if __name__ == '__main__':
 
     logging.info('Start server with "{}" configuration'.format(args.config))
     try:
-        pyfeedstg.Server(filename=args.config, sendLastEntry=args.last).run()
+        Server(filename=args.config, sendLastEntry=args.last).run()
     except Exception as err:
         logging.error('ERROR: {}'.format(err))
