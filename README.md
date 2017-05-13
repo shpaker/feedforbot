@@ -3,7 +3,7 @@
 # FeedsBot for Telegram written on Python
 Forwarding new articles from RSS/Atom feeds to Telegram.
 
-##Usage
+## Usage
 You can write the configuration file...  
 ```yaml
 token: 'YOUR_SECRET_TELEGRAM_TOKEN'
@@ -24,7 +24,7 @@ Other options
 ```python
 python app.py -h
 ```
-##Avialable format options
+## Avialable format options
 * $author
 * $description
 * $tags
