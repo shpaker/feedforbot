@@ -25,6 +25,10 @@ feeds:
   - url    : 'https://example.site/feed2.rss'
     id     : 'your_telegram_id'
 ```
+Установить зависимости  
+```bash
+pip install -r requirements.txt
+```
 И запустить скрипт  
 ```python
 python app.py
