@@ -1,7 +1,7 @@
 import argparse
 import logging
 
-from pyfeedstg import Server
+from pyfeedstg.server import Server
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 import asyncio
-import logging
 import html
+import logging
 from string import Template
 
 import feedparser
@@ -37,8 +37,10 @@ class Forwarder(object):
             for newEntry in updatedFeed['entries']:
                 isNewEntry = True
 
+                matcher = 'id' if 'id' in newEntry else 'link'
+
                 for oldEntry in self.feed['entries']:
-                    if newEntry["id"] == oldEntry["id"]:
+                    if newEntry[matcher] == oldEntry[matcher]:
                         isNewEntry = False
 
                 if isNewEntry is True:
