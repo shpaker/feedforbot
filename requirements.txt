@@ -1,3 +1,4 @@
-feedparser==5.2.1
-telepot==10.4
-PyYAML==3.12
+redis
+feedparser
+requests[socks]
+PyYAML

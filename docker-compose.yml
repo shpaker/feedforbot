@@ -1,0 +1,23 @@
+version: '3.6'
+
+services:
+  bot:
+    build: src
+    restart: always
+    networks:
+      rssbot:
+        aliases:
+          - src.rssbot
+
+  proxy:
+    image: shpaker/torsocks
+    restart: on-failure
+    expose:
+      - '9050'
+    networks:
+      rssbot:
+        aliases:
+          - proxy.rssbot
+
+networks:
+  rssbot:

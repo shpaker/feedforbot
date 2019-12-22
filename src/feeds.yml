@@ -1,0 +1,7 @@
+# ================ RADIO-T https://telegram.me/radiotnews
+# Umputun
+- url    : 'http://feeds.rucast.net/Umputun'
+  id     : '9429534'
+  format : '&#x1f60e; <a href="$url">$title</a>\nЕженедельный подкаст от #Umputun'
+  delay: 4
+# Radio-t
