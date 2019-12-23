@@ -5,8 +5,8 @@ from string import Template
 
 from requests import request
 
-from ..models import FeedEntry
 from .listener import Listener
+from ..models import FeedEntry
 
 
 class Forwarder:
@@ -14,11 +14,11 @@ class Forwarder:
     def __init__(self,
                  token: str,
                  listener: Listener):
-
         self.token = token
         self.listener = listener
 
-    def forward_to_telegram(self, text):
+    def send_telegram_message(self,
+                              text: str):
         url = f'https://api.telegram.org/bot{self.token}/sendMessage'
         data = dict(chat_id=self.listener.id,
                     text=text,
@@ -39,32 +39,47 @@ class Forwarder:
 
         template_dict = asdict(entry)
         output = Template(self.listener.format).safe_substitute(template_dict)
-        logging.info(f'Send to "{self.listener.id}": "{output}"')
+        logging.debug(f'Send to "{self.listener.id}": "{output}"')
         preview = not self.listener.preview
 
             # self.src.sendMessage(self.userId, output, parse_mode='HTML',
             #                      disable_web_page_preview=preview)
-        response = self.forward_to_telegram(output)
+        response = self.send_telegram_message(output)
 
-        if response.ok:
+        if response and response.ok:
             entry.forwarded = True
 
-    async def run(self):
-        logging.info(f'Start forwarding "{self.listener.url}" to "{self.listener.id}"')
+        return entry.forwarded
 
+    async def listen(self):
         while True:
+            logging.debug(f'Check feed {self.listener.url} for user_id {self.listener.id}')
+
             try:
-                feed = self.listener.feed
-
-                if not feed.entries:
-                    logging.info(f'Got empty feed from "{self.listener.url}"')
-
-                for entry in feed.entries:
-                        if not entry.forwarded:
-                            self.send_entry(entry)
-
-                self.listener.store_feed(feed)
+                await self.check()
             except Exception as err:
                 logging.warning(err)
             finally:
                 await asyncio.sleep(self.listener.delay)
+
+    async def check(self):
+        feed = self.listener.feed
+        new_messages = 0
+        forwarded_messages = 0
+
+        if not feed.entries:
+            logging.info(f'Got empty feed from "{self.listener.url}"')
+
+        for entry in feed.entries:
+            if not entry.forwarded:
+                new_messages += 1
+                result = self.send_entry(entry)
+                if result:
+                    forwarded_messages += 1
+
+        if new_messages:
+            msg = f'Received {new_messages} new messages from {self.listener.url}, and forwarded {forwarded_messages}'
+            logging.info(msg)
+
+        if feed.entries:
+            self.listener.store(feed)

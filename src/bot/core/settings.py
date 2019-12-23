@@ -1,7 +1,5 @@
-import logging
 from dataclasses import dataclass
 from enum import Enum, auto
-from os import environ
 
 from environs import Env
 
@@ -28,7 +26,7 @@ class Settings:
     # todo proxy to None
 
     log_format: str = LOG_FORMAT
-    log_level: int = logging.NOTSET
+    log_debug: bool = False
 
     https_proxy: str = None
 
@@ -39,7 +37,6 @@ class Settings:
 
     def __new__(cls):
         if not hasattr(cls, 'instance'):
-            logging.info('CREATE SETTINGS INSTANCE')
             cls.instance = super(Settings, cls).__new__(cls)
 
         return cls.instance
@@ -48,13 +45,8 @@ class Settings:
         env = Env()
         env.read_env()
 
-        self.token = env.str[EnvVariable.TELEGRAM_TOKEN.name]
+        self.token = env.str(EnvVariable.TELEGRAM_TOKEN.name)
+        self.feeds_path = env.str(EnvVariable.FEEDS_PATH.name)
         self.redis_host = env(EnvVariable.REDIS_HOST.name, 'localhost')
         self.redis_port = env.int(EnvVariable.REDIS_PORT.name, 6379)
-
-        debug_logs = env.bool(EnvVariable.DEBUG_LOGS.name, False)
-
-        if debug_logs:
-            self.log_level = logging.DEBUG
-
-        self.feeds_path = environ[EnvVariable.FEEDS_PATH.name]
+        self.log_debug = env.bool(EnvVariable.DEBUG_LOGS.name, False)

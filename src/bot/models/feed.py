@@ -1,6 +1,6 @@
 from typing import List, Dict
 
-from ..models import FeedEntry
+from .feed_entry import FeedEntry
 
 
 class Feed:
@@ -14,8 +14,10 @@ class Feed:
 
         for raw_entry in raw_entries:
             tags = []
-            if 'tags' in raw_entry['tags']:
-                tags = [tags.append(tag.get('term')) for tag in raw_entry.get('tags')]
+
+            if 'tags' in raw_entry:
+                for tag in raw_entry['tags']:
+                    tags.append(tag['term'])
 
             entry = FeedEntry(description=raw_entry.get('summary'),
                               published=raw_entry.get('published'),
@@ -33,3 +35,5 @@ class Feed:
                 for old_entry in old_entries:
                     if old_entry.url == raw_entry.url:
                         raw_entry.forwarded = old_entry.forwarded
+
+        return self.entries

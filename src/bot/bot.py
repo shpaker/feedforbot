@@ -1,4 +1,6 @@
 import asyncio
+from asyncio.events import AbstractEventLoop
+import logging
 from json import load as json_load
 from typing import List
 
@@ -11,14 +13,18 @@ from .schemas import ListenerSchema
 
 class Bot(object):
 
-    def __init__(self):
+    def __init__(self,
+                 loop: AbstractEventLoop = None):
+
         self.settings = Settings()
+        self.loop = loop
         self.redis_pool = ConnectionPool(host=self.settings.redis_host,
                                          port=self.settings.redis_port)
         self.listeners: List[Listener] = self.read_listeners(self.settings.feeds_path)
 
     def __enter__(self):
-        self.loop = asyncio.get_event_loop()
+        if not self.loop:
+            self.loop = asyncio.get_event_loop()
         return self
         # self.loop.set_exception_handler(self.loop_exception_handler)
 
@@ -48,12 +54,16 @@ class Bot(object):
 
             listeners.append(listener)
 
-            return listeners
+        return listeners
 
     def run(self):
+        tasks = list()
+
         for listener in self.listeners:
             forwarder = Forwarder(token=self.settings.token,
                                   listener=listener)
-            asyncio.ensure_future(forwarder.run())
 
+            tasks.append(forwarder.listen())
+
+        self.loop.run_until_complete(asyncio.gather(*tasks))
         self.loop.run_forever()

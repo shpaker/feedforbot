@@ -27,20 +27,21 @@ class Listener:
 
         self._feed_schema: Schema = FeedSchema()
 
-    def read_from_db(self):
+    @property
+    def stored_feed(self):
         stored_feed = Feed()
-        stored_entries_bytes: bytes = self.redis.hget(name=self.id,
-                                                      key=self.url)
+        stored_bytes: bytes = self.redis.hget(name=self.id,
+                                              key=self.url)
 
-        if not stored_entries_bytes:
-            res = self.store_feed(stored_feed)
+        if not stored_bytes:
+            self.store(stored_feed)
             return stored_feed
 
-        stored_entries_str = stored_entries_bytes.decode()
-        stored_entries_dict = json.loads(stored_entries_str)
-        stored_entries_dict = self._feed_schema.dump(stored_entries_dict)
+        stored_str = stored_bytes.decode()
+        stored_dict = json.loads(stored_str)
+        stored_dict = self._feed_schema.dump(stored_dict)
 
-        for raw_entry in stored_entries_dict['entries']:
+        for raw_entry in stored_dict['entries']:
             entry = FeedEntry(description=raw_entry['description'],
                               published=raw_entry['published'],
                               title=raw_entry['title'],
@@ -52,19 +53,19 @@ class Listener:
 
         return stored_feed
 
-    def store_feed(self, feed: Feed) -> int:
+    def store(self, feed: Feed) -> int:
         feed_dumped = self._feed_schema.dump(feed)
+        value = json.dumps(feed_dumped, indent=2)
         result = self.redis.hset(name=self.id,
                                  key=self.url,
-                                 value=json.dumps(feed_dumped).encode())
+                                 value=value)
         return result
 
     @property
     def feed(self):
-        old_feed = self.read_from_db()
         raw_feed = feedparser.parse(self.url)
         new_feed = Feed()
         new_feed.from_raw(raw_entries=list(raw_feed.entries),
-                          old_entries=old_feed.entries)
+                          old_entries=self.stored_feed.entries)
 
         return new_feed
