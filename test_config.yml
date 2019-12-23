@@ -1,5 +1,0 @@
-token: '210821113:AAH-PrP7IKzy6RWiDbvWeJew_rn6uyXh0vM' # https://telegram.me/rss2chanbot
-feeds:
-  - url: http://madrobots.ru/blog/rss/
-    id : 9429534
-    delay: 30
