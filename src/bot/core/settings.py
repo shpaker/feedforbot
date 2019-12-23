@@ -16,6 +16,7 @@ class EnvVariable(Enum):
     DEBUG_LOGS = auto()
     REDIS_HOST = auto()
     REDIS_PORT = auto()
+    TG_PROXY = auto()
 
 
 @dataclass
@@ -28,7 +29,7 @@ class Settings:
     log_format: str = LOG_FORMAT
     log_debug: bool = False
 
-    https_proxy: str = None
+    tg_proxy: str = None
 
     redis_host: str = '127.0.0.1'
     redis_port: int = 6379
@@ -50,3 +51,4 @@ class Settings:
         self.redis_host = env(EnvVariable.REDIS_HOST.name, 'localhost')
         self.redis_port = env.int(EnvVariable.REDIS_PORT.name, 6379)
         self.log_debug = env.bool(EnvVariable.DEBUG_LOGS.name, False)
+        self.tg_proxy = env.str(EnvVariable.TG_PROXY.name, None)

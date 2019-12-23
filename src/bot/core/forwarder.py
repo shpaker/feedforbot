@@ -7,7 +7,7 @@ from requests import request
 
 from .listener import Listener
 from ..models import FeedEntry
-
+from .settings import Settings
 
 class Forwarder:
 
@@ -16,6 +16,7 @@ class Forwarder:
                  listener: Listener):
         self.token = token
         self.listener = listener
+        self.settings = Settings()
 
     def send_telegram_message(self,
                               text: str):
@@ -28,8 +29,7 @@ class Forwarder:
             response = request(method='POST',
                                url=url,
                                data=data,
-                               proxies=dict(http='socks5://localhost:9050',
-                                            https='socks5://localhost:9050'))
+                               proxies=dict(https=self.settings.tg_proxy))
             return response
         except Exception as err:
             logging.warning(err)
