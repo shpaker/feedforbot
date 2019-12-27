@@ -1,4 +1,5 @@
-redis
-feedparser
-requests[socks]
-PyYAML
+redis==3.3.11
+feedparser==5.2.1
+requests[socks]==2.20.1
+PyYAML==3.13
+environs==4.0.0

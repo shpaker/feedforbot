@@ -9,6 +9,7 @@ from .listener import Listener
 from ..models import FeedEntry
 from .settings import Settings
 
+
 class Forwarder:
 
     def __init__(self,
