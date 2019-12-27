@@ -1,11 +1,19 @@
-FROM python:3.8
+FROM python:3.7-alpine
 
+# env vars
+ENV FEEDS_PATH='feeds.yml'
+
+# add files anf user
+RUN adduser -D -h /home/feedforwarder feedforwarder
+WORKDIR /home/feedforwarder
+
+# setup requirements
 ADD requirements.txt requirements.txt
+RUN pip install --disable-pip-version-check --requirement requirements.txt
 
-RUN pip install -r requirements.txt
+# execute from user
+USER feedforwarder
 
-ADD . /home
+ADD ./src .
 
-WORKDIR /home
-
-ENTRYPOINT ["python", "app.py", "-l"]
+ENTRYPOINT ["python", "app.py"]
