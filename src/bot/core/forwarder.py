@@ -2,26 +2,28 @@ import asyncio
 import logging
 from dataclasses import asdict
 from string import Template
+from typing import Optional
 
 from requests import request
 
 from .listener import Listener
 from ..models import FeedEntry
-from .settings import Settings
 
 
 class Forwarder:
 
     def __init__(self,
-                 token: str,
+                 tg_token: str,
+                 tg_proxy: Optional[str],
                  listener: Listener):
-        self.token = token
+
+        self.tg_token = tg_token
+        self.tg_proxy = tg_proxy
         self.listener = listener
-        self.settings = Settings()
 
     def send_telegram_message(self,
                               text: str):
-        url = f'https://api.telegram.org/bot{self.token}/sendMessage'
+        url = f'https://api.telegram.org/bot{self.tg_token}/sendMessage'
         data = dict(chat_id=self.listener.id,
                     text=text,
                     parse_mode='HTML')
@@ -30,7 +32,7 @@ class Forwarder:
             response = request(method='POST',
                                url=url,
                                data=data,
-                               proxies=dict(https=self.settings.tg_proxy))
+                               proxies=dict(https=self.tg_proxy))
             return response
         except Exception as err:
             logging.warning(err)
