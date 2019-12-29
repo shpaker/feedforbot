@@ -5,7 +5,7 @@ from json import load as json_load
 from typing import List
 
 from redis import ConnectionPool, Redis
-from yaml import load as yaml_load
+from yaml import safe_load as yaml_load
 
 from .core import Settings, Listener, Forwarder
 from .schemas import ListenerSchema
@@ -14,9 +14,10 @@ from .schemas import ListenerSchema
 class Bot(object):
 
     def __init__(self,
+                 settings: Settings,
                  loop: AbstractEventLoop = None):
 
-        self.settings = Settings()
+        self.settings = settings
         self.loop = loop
         self.redis_pool = ConnectionPool(host=self.settings.redis_host,
                                          port=self.settings.redis_port)
@@ -60,7 +61,8 @@ class Bot(object):
         tasks = list()
 
         for listener in self.listeners:
-            forwarder = Forwarder(token=self.settings.token,
+            forwarder = Forwarder(tg_token=self.settings.tg_token,
+                                  tg_proxy=self.settings.tg_proxy,
                                   listener=listener)
 
             tasks.append(forwarder.listen())
