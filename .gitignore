@@ -6,6 +6,7 @@
 *.yml
 *.yaml
 *.json
+redis_data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
