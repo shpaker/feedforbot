@@ -22,7 +22,7 @@ class Feed:
             entry = FeedEntry(description=raw_entry.get('summary'),
                               published=raw_entry.get('published'),
                               title=raw_entry.get('title'),
-                              url=raw_entry.get('url') if 'url' in raw_entry else raw_entry.get('id'),
+                              url=raw_entry.get('link') if 'link' in raw_entry else raw_entry.get('id'),
                               author=raw_entry.get('author'),
                               tags=', '.join(tags))
 
