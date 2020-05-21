@@ -10,7 +10,7 @@ class Feed:
 
     def from_raw(self,
                  raw_entries: List[Dict],
-                 old_entries:List[FeedEntry] = None):
+                 old_entries: List[FeedEntry] = None):
 
         for raw_entry in raw_entries:
             tags = []
@@ -22,7 +22,7 @@ class Feed:
             entry = FeedEntry(description=raw_entry.get('summary'),
                               published=raw_entry.get('published'),
                               title=raw_entry.get('title'),
-                              url=raw_entry.get('id') if 'id' in raw_entry else raw_entry.get('url'),
+                              url=raw_entry.get('url') if 'url' in raw_entry else raw_entry.get('id'),
                               author=raw_entry.get('author'),
                               tags=', '.join(tags))
 
