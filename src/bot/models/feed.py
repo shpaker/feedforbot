@@ -1,3 +1,4 @@
+from html import escape
 from typing import List, Dict
 
 from .feed_entry import FeedEntry
@@ -33,7 +34,7 @@ class Feed:
         if old_entries:
             for raw_entry in self.entries:
                 for old_entry in old_entries:
-                    if old_entry.url == raw_entry.url:
+                    if escape(old_entry.url) == raw_entry.url:
                         raw_entry.forwarded = old_entry.forwarded
 
         return self.entries
