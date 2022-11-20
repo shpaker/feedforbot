@@ -2,7 +2,6 @@
 .env
 .DS_Store
 
-.env
 *.yml
 *.yaml
 *.json

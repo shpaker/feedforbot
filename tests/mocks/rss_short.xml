@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Все публикации подряд</title>
+    <link>https://asd.asd/s/</link>
+    <description><![CDATA[Все публикации подряд]]></description>
+    <language>ru</language>
+    <managingEditor>editor@aaa.ccc</managingEditor>
+    <pubDate>Wed, 23 Nov 2022 19:26:19 GMT</pubDate>
+    <item>
+      <title><![CDATA[FOO]]></title>
+      <guid isPermaLink="true">https://aaa.ccc</guid>
+      <description>
+        <![CDATA[BAR]]></description>
+      <pubDate>Wed, 23 Nov 2022 19:22:24 GMT</pubDate>
+      <dc:creator>baz</dc:creator>
+    </item>
+  </channel>
+</rss>
