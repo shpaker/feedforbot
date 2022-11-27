@@ -50,11 +50,18 @@ class RSSListener(
         )
         text = soup.text
         _id = entry.id if "id" in entry else entry.link
+        published_at = (
+            None if "published_parsed" not in entry else entry.published_parsed
+        )
+        if published_at is None and "updated_parsed" in entry:
+            published_at = entry.updated_parsed
         return ArticleModel(
             id=_id,
             published_at=datetime.fromtimestamp(
-                mktime(entry.published_parsed),
-            ),
+                mktime(published_at),
+            )
+            if published_at
+            else None,
             title=entry.title,
             url=entry.link if "link" in entry else _id,
             text=text.strip(),

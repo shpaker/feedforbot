@@ -42,3 +42,25 @@ if __name__ == '__main__':
 ```
 
 ### As cli app
+
+#### Save to file `config.yml` data:
+
+```
+cache:
+  type: 'files'
+schedulers:
+  - listener:
+      type: 'rss'
+      params:
+        url: 'https://www.debian.org/News/news'
+    transport:
+      type: 'telegram_bot'
+      params:
+        token: '123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD'
+        to: '@channel'
+```
+#### Start script
+
+```commandline
+feedforbot --verbose config.yml
+```
