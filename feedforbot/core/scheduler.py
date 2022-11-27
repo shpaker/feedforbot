@@ -24,7 +24,7 @@ class Scheduler:
         self.cron_rule = cron_rule
         self.listener = listener
         self.transport = transport
-        self.cache = cache or InMemoryCache()
+        self.cache = cache or InMemoryCache(id=listener.source_id)
 
     async def action(
         self,
