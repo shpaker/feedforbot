@@ -19,7 +19,7 @@ class Scheduler:
         *,
         listener: ListenerProtocol,
         transport: TransportProtocol,
-        cache: CacheProtocol | None,
+        cache: CacheProtocol | None = None,
     ) -> None:
         self.cron_rule = cron_rule
         self.listener = listener
