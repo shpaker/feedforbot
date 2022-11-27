@@ -60,7 +60,7 @@ class _CacheConfigModel(_ConfigEntryModel):
 
 
 class _SchedulerConfigModel(BaseModel):
-    rule: str
+    rule: str = "* * * * *"
     listener: _ListenerConfigModel
     transport: _TransportConfigModel
 
@@ -105,7 +105,9 @@ def _make_scheduler_from_config(
         transport=transport_cls(
             **config.transport.params,
         ),
-        cache=cache_cls(id=listener.source_id),
+        cache=cache_cls(
+            id=listener.source_id,
+        ),
     )
 
 

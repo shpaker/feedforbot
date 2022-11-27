@@ -3,6 +3,7 @@ import asyncio
 from aiocron import Cron
 from httpx import HTTPError, RequestError
 
+from feedforbot.core.cache import InMemoryCache
 from feedforbot.core.types import (
     CacheProtocol,
     ListenerProtocol,
@@ -18,12 +19,12 @@ class Scheduler:
         *,
         listener: ListenerProtocol,
         transport: TransportProtocol,
-        cache: CacheProtocol,
+        cache: CacheProtocol | None,
     ) -> None:
         self.cron_rule = cron_rule
         self.listener = listener
         self.transport = transport
-        self.cache = cache
+        self.cache = cache or InMemoryCache()
 
     async def action(
         self,
@@ -41,7 +42,7 @@ class Scheduler:
         if to_send:
             ids = "\n    ".join([article.id for article in to_send])
             logger.info(
-                f"To send"
+                f"To send\n"
                 f"  count : {len(to_send)}\n"
                 f"  from  : {self.listener.source_id}\n"
                 f"  ids   :\n"
@@ -51,7 +52,7 @@ class Scheduler:
         if failed:
             ids = "\n    ".join([article.id for article in to_send])
             logger.info(
-                f"Failed"
+                f"Failed\n"
                 f"  count : {len(failed)}\n"
                 f"  from  : {self.listener.source_id}\n"
                 f"  ids   :\n"
