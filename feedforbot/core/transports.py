@@ -3,14 +3,18 @@ from abc import ABC, abstractmethod
 from httpx import HTTPError, RequestError
 from jinja2 import Template
 
-from feedforbot.constants import DEFAULT_MESSAGE_TEMPLATE
+from feedforbot.constants import APP_NAME, DEFAULT_MESSAGE_TEMPLATE
 from feedforbot.core.article import ArticleModel
 from feedforbot.core.utils import make_post_request
+from feedforbot.exceptions import TransportSendError
 
 
 class TransportBase(
     ABC,
 ):
+    def __repr__(self) -> str:
+        return f"<{APP_NAME}.{self.__class__.__name__}>"
+
     @abstractmethod
     async def send(
         self,
@@ -34,6 +38,9 @@ class TelegramBotTransport(
         self._api_url = f"https://api.telegram.org/bot{token}/sendMessage"
         self._message_template = template
 
+    def __repr__(self) -> str:
+        return f"<{APP_NAME}.{self.__class__.__name__}: {self._to}>"
+
     async def _send_article(
         self,
         article: ArticleModel,
@@ -49,8 +56,8 @@ class TelegramBotTransport(
                     "parse_mode": "HTML",
                 },
             )
-        except (HTTPError, RequestError):
-            return False
+        except (HTTPError, RequestError) as exc:
+            raise TransportSendError from exc
         is_ok: bool = response["ok"]
         return is_ok
 
@@ -60,7 +67,11 @@ class TelegramBotTransport(
     ) -> list[ArticleModel]:
         failed = []
         for article in articles:
-            is_success = await self._send_article(article)
+            try:
+                is_success = await self._send_article(article)
+            except TransportSendError:
+                failed.append(article)
+                continue
             if not is_success:
                 failed.append(article)
         return failed

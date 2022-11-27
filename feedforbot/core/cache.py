@@ -7,7 +7,7 @@ import aiofiles
 import aiofiles.os
 import orjson
 
-from feedforbot.constants import DEFAULT_FILES_CACHE_DIR
+from feedforbot.constants import APP_NAME, DEFAULT_FILES_CACHE_DIR
 from feedforbot.core.article import ArticleModel
 from feedforbot.core.utils import make_sha2
 
@@ -18,6 +18,9 @@ class CacheBase(ABC):
         id: str,  # noqa, pylint: disable=redefined-builtin
     ) -> None:
         self.id = id
+
+    def __repr__(self) -> str:
+        return f"<{APP_NAME}.{self.__class__.__name__}>"
 
     @abstractmethod
     async def write(
@@ -64,8 +67,11 @@ class FilesCache(
         data_dir: Path = DEFAULT_FILES_CACHE_DIR,
     ) -> None:
         self.data_dir = data_dir.resolve()
-        self.cache_path = data_dir.resolve() / f"{make_sha2(id)}_cache.json"
+        self.cache_path = self.data_dir / f"{make_sha2(id)}.json"
         super().__init__(id)
+
+    def __repr__(self) -> str:
+        return f"<{APP_NAME}.{self.__class__.__name__}: {self.cache_path}>"
 
     async def write(
         self,

@@ -4,19 +4,19 @@ from time import mktime
 
 from bs4 import BeautifulSoup
 from feedparser import FeedParserDict, parse
+from httpx import HTTPError, RequestError
 
+from feedforbot.constants import APP_NAME
 from feedforbot.core.article import ArticleModel
 from feedforbot.core.utils import make_get_request
+from feedforbot.exceptions import ListenerReceiveError
 
 
 class ListenerBase(
     ABC,
 ):
-    def __init__(
-        self,
-        source_id: str,
-    ) -> None:
-        self.source_id = source_id
+    def __repr__(self) -> str:
+        return f"<{APP_NAME}.{self.__class__.__name__}>"
 
     @abstractmethod
     async def receive(
@@ -31,12 +31,11 @@ class RSSListener(
     def __init__(
         self,
         url: str,
-        source_id: str | None = None,
     ) -> None:
-        if source_id is None:
-            source_id = f"rss:{url}"
-        super().__init__(source_id=source_id)
         self.url = url
+
+    def __repr__(self) -> str:
+        return f"<{APP_NAME}.{self.__class__.__name__}: {self.url}>"
 
     def _parse_entry(  # noqa
         self,
@@ -72,6 +71,9 @@ class RSSListener(
     async def receive(
         self,
     ) -> tuple[ArticleModel, ...]:
-        response = await make_get_request(self.url)
+        try:
+            response = await make_get_request(self.url)
+        except (HTTPError, RequestError) as exc:
+            raise ListenerReceiveError from exc
         parsed = parse(response)
         return tuple(self._parse_entry(entry) for entry in parsed.entries)

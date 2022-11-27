@@ -1,7 +1,6 @@
 import asyncio
 
 from aiocron import Cron
-from httpx import HTTPError, RequestError
 
 from feedforbot.core.cache import InMemoryCache
 from feedforbot.core.types import (
@@ -9,6 +8,7 @@ from feedforbot.core.types import (
     ListenerProtocol,
     TransportProtocol,
 )
+from feedforbot.exceptions import ListenerReceiveError
 from feedforbot.logger import logger
 
 
@@ -31,7 +31,8 @@ class Scheduler:
     ) -> None:
         try:
             articles = await self.listener.receive()
-        except (HTTPError, RequestError):
+        except ListenerReceiveError:
+            logger.warning(f"ListenerReceiveError {self.listener}")
             return
         if (cached := await self.cache.read()) is None:
             await self.cache.write(*articles)
@@ -42,20 +43,18 @@ class Scheduler:
         if to_send:
             ids = "\n    ".join([article.id for article in to_send])
             logger.info(
-                f"To send\n"
-                f"  count : {len(to_send)}\n"
-                f"  from  : {self.listener.source_id}\n"
-                f"  ids   :\n"
+                f"SEND\n"
+                f"  from : {self.listener}\n"
+                f"  ids  :\n"
                 f"    {ids}"
             )
         failed = await self.transport.send(*to_send)
         if failed:
             ids = "\n    ".join([article.id for article in to_send])
-            logger.info(
-                f"Failed\n"
-                f"  count : {len(failed)}\n"
-                f"  from  : {self.listener.source_id}\n"
-                f"  ids   :\n"
+            logger.warning(
+                f"FAILED\n"
+                f"  from : {self.listener}\n"
+                f"  ids  :\n"
                 f"    {ids}"
             )
         to_cache = tuple(
@@ -68,13 +67,11 @@ class Scheduler:
     ) -> None:
         logger.info(
             (
-                f"Scheduler\n"
+                f"SCHEDULER\n"
                 f"  rule      : {self.cron_rule}\n"
-                f"  listen    : {self.listener.source_id}\n"
-                f"  transport : "
-                f'{self.transport.__class__.__name__.split("Transport")[0]}\n'
-                f"  cache     : "
-                f'{self.cache.__class__.__name__.split("Cache")[0]}'
+                f"  listen    : {self.listener}\n"
+                f"  transport : {self.transport}\n"
+                f"  cache     : {self.cache}"
             )
         )
         crontab = Cron(

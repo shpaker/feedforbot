@@ -106,7 +106,7 @@ def _make_scheduler_from_config(
             **config.transport.params,
         ),
         cache=cache_cls(
-            id=listener.source_id,
+            id=f"{transport_cls}-{listener_cls}",
         ),
     )
 
