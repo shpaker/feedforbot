@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
 #### Save to file `config.yml` data:
 
-```
+```yaml
 cache:
   type: 'files'
 schedulers:
