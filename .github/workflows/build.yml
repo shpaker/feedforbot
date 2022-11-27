@@ -20,7 +20,11 @@ jobs:
         id: extract_name_and_version
       - uses: docker/setup-qemu-action@v2
       - uses: docker/setup-buildx-action@v2
-      - uses: docker/login-action@v1
+      - uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_PASS }}
+      - uses: docker/login-action@v2
         with:
           registry: ${{ env.REGISTRY_HOST }}
           username: ${{ github.actor }}
@@ -37,6 +41,11 @@ jobs:
             "${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.major_ver }}"
             "${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.minor_ver }}"
             "${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.ver }}"
+            "${{ github.repository }}:latest"
+            "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.sha }}"
+            "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.major_ver }}"
+            "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.minor_ver }}"
+            "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.ver }}"
           labels:
             "org.opencontainers.image.source=https://github.com/${{ github.repository }}"
           build-args: |
