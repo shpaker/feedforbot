@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Forward links from RSS/Atom feeds to messengers"
 authors = ["Aleksandr Shpak <shpaker@gmail.com>"]
 readme = "README.md"
+homepage = "https://github.com/shpaker/feedforbot"
+repository = "https://github.com/shpaker/feedforbot"
 
 [tool.poetry.dependencies]
 python = "^3.10"
