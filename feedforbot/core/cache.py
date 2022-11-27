@@ -1,0 +1,105 @@
+import json
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any, Sequence
+
+import aiofiles
+import aiofiles.os
+import orjson
+
+from feedforbot.constants import DEFAULT_FILES_CACHE_DIR
+from feedforbot.core.article import ArticleModel
+from feedforbot.core.utils import make_sha2
+
+
+class CacheBase(ABC):
+    def __init__(
+        self,
+        id: str,  # noqa, pylint: disable=redefined-builtin
+    ) -> None:
+        self.id = id
+
+    @abstractmethod
+    async def write(
+        self,
+        *articles: ArticleModel,
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def read(
+        self,
+    ) -> Sequence[ArticleModel] | None:
+        raise NotImplementedError
+
+
+class InMemoryCache(
+    CacheBase,
+):
+    def __init__(
+        self,
+        **kwargs: Any,
+    ):
+        self._cache: tuple[ArticleModel, ...] | None = None
+        super().__init__(**kwargs)
+
+    async def write(
+        self,
+        *articles: ArticleModel,
+    ) -> None:
+        self._cache = articles
+
+    async def read(
+        self,
+    ) -> Sequence[ArticleModel] | None:
+        return self._cache
+
+
+class FilesCache(
+    CacheBase,
+):
+    def __init__(
+        self,
+        id: str,  # noqa, pylint: disable=redefined-builtin
+        data_dir: Path = DEFAULT_FILES_CACHE_DIR,
+    ) -> None:
+        self.data_dir = data_dir.resolve()
+        self.cache_path = data_dir.resolve() / f"{make_sha2(id)}_cache.json"
+        super().__init__(id)
+
+    async def write(
+        self,
+        *articles: ArticleModel,
+    ) -> None:
+        await self._ensure_data_dir()
+        async with aiofiles.open(
+            self.cache_path,
+            mode="wb",
+        ) as fh:
+            await fh.write(
+                orjson.dumps(
+                    [article.dict() for article in articles],
+                    option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS,
+                )
+            )
+
+    async def read(
+        self,
+    ) -> tuple[ArticleModel, ...] | None:
+        if not await aiofiles.os.path.exists(self.cache_path):
+            return None
+        async with aiofiles.open(
+            self.cache_path,
+            mode="r",
+        ) as fh:
+            contents = await fh.read()
+        if not contents:
+            return None
+        return tuple(ArticleModel(**data) for data in json.loads(contents))
+
+    async def _ensure_data_dir(
+        self,
+    ) -> None:
+        if await aiofiles.os.path.exists(self.data_dir):
+            return
+        await aiofiles.os.mkdir(self.data_dir)

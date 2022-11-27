@@ -1,19 +1,14 @@
-FROM python:3.7-alpine
+FROM python:3.10-slim as base-image
+ARG POETRY_VERSION=1.2.2
+WORKDIR /service
+RUN pip install "poetry==$POETRY_VERSION"
+ADD pyproject.toml poetry.lock README.md ./
+ADD feedforbot feedforbot
+RUN poetry build
+RUN python -m venv .venv
+RUN .venv/bin/pip install dist/*.whl
 
-# env vars
-ENV ENV_CONFIGURATION=True \
-    FEEDS_PATH=/feedforbot/feeds.yml
-
-# add files and user
-RUN adduser -D -h /feedforbot feedforbot
-WORKDIR /feedforbot
-
-# setup requirements
-ADD requirements.txt requirements.txt
-RUN pip install --disable-pip-version-check --requirement requirements.txt
-
-# execute from user
-USER feedforbot
-ADD ./src .
-
-ENTRYPOINT ["python", "app.py"]
+FROM python:3.10-slim as runtime-image
+WORKDIR /service
+COPY --from=base-image /service/.venv ./.venv
+ENTRYPOINT ["/service/.venv/bin/python3", "-m", "feedforbot"]
