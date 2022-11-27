@@ -11,7 +11,7 @@ VERBOSITY_LEVEL = (
     "WARNING",
     "INFO",
     "DEBUG",
-    "NOSET",
+    "NOTSET",
 )
 
 
