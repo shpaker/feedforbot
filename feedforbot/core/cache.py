@@ -108,4 +108,7 @@ class FilesCache(
     ) -> None:
         if await aiofiles.os.path.exists(self.data_dir):
             return
-        await aiofiles.os.mkdir(self.data_dir)
+        try:
+            await aiofiles.os.mkdir(self.data_dir)
+        except FileExistsError:
+            return
