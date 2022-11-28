@@ -29,6 +29,7 @@ jobs:
           registry: ${{ env.REGISTRY_HOST }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - run: sed -i 's/0.1.0/'"${{ steps.extract_name_and_version.outputs.ver }}"'/' pyproject.toml
       - run: sed -i 's/0.1.0/'"${{ steps.extract_name_and_version.outputs.ver }}"'/' feedforbot/version.py
       - uses: docker/build-push-action@v3
         with:
