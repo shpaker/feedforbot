@@ -25,6 +25,7 @@ class ArticleModel(
     text: str
     images: tuple[HttpUrl, ...] = ()
     authors: tuple[str, ...] = ()
+    categories: tuple[str, ...] = ()
 
     def __eq__(
         self,

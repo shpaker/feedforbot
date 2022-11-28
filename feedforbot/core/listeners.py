@@ -42,11 +42,9 @@ class RSSListener(
         entry: FeedParserDict,
     ) -> ArticleModel:
         soup = BeautifulSoup(entry.summary, "html.parser")
-        authors = (
-            tuple(author.name for author in entry.authors)
-            if "authors" in entry
-            else ()
-        )
+        authors: tuple[str, ...] = ()
+        if "authors" in entry and entry.authors != [{}]:
+            authors = tuple(author.name for author in entry.authors)
         text = soup.text
         _id = entry.id if "id" in entry else entry.link
         published_at = (
@@ -66,6 +64,9 @@ class RSSListener(
             text=text.strip(),
             images=tuple(img["src"] for img in soup.find_all("img")),
             authors=authors,
+            categories=tuple(tag.term for tag in entry.tags)
+            if "tags" in entry
+            else (),
         )
 
     async def receive(

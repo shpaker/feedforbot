@@ -8,12 +8,22 @@
     <managingEditor>editor@aaa.ccc</managingEditor>
     <pubDate>Wed, 23 Nov 2022 19:26:19 GMT</pubDate>
     <item>
+      <title>foo</title>
+      <link>https://www.a.tt</link>
+      <pubDate>Sun, 27 Nov 2022 17:27:54 +0300</pubDate>
+      <description>barbarbar</description>
+      <guid>https://www.a.tt</guid>
+    </item>
+    <item>
       <title><![CDATA[FOO]]></title>
       <guid isPermaLink="true">https://aaa.ccc</guid>
       <description>
         <![CDATA[BAR]]></description>
       <pubDate>Wed, 23 Nov 2022 19:22:24 GMT</pubDate>
-      <dc:creator>baz</dc:creator>
+      <dc:creator/>
+      <category>a</category>
+      <category>b</category>
+      <category>c</category>
     </item>
   </channel>
 </rss>
