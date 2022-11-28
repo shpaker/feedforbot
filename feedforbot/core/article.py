@@ -33,7 +33,7 @@ class ArticleModel(
     ) -> Any:
         return self.id == other.id
 
-    @validator("published_at", pre=True)
+    @validator("published_at")
     def _published_at(  # pylint: disable=no-self-argument
         cls,
         value: datetime | None,

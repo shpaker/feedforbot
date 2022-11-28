@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
 from time import mktime
 
 from bs4 import BeautifulSoup
@@ -54,11 +53,7 @@ class RSSListener(
             published_at = entry.updated_parsed
         return ArticleModel(
             id=_id,
-            published_at=datetime.fromtimestamp(
-                mktime(published_at), tz=timezone.utc
-            )
-            if published_at
-            else None,
+            published_at=mktime(published_at) if published_at else None,
             title=entry.title,
             url=entry.link if "link" in entry else _id,
             text=text.strip(),
