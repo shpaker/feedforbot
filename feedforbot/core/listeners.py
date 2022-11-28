@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from datetime import datetime
 from time import mktime
 
 from bs4 import BeautifulSoup
@@ -42,11 +41,9 @@ class RSSListener(
         entry: FeedParserDict,
     ) -> ArticleModel:
         soup = BeautifulSoup(entry.summary, "html.parser")
-        authors = (
-            tuple(author.name for author in entry.authors)
-            if "authors" in entry
-            else ()
-        )
+        authors: tuple[str, ...] = ()
+        if "authors" in entry and entry.authors != [{}]:
+            authors = tuple(author.name for author in entry.authors)
         text = soup.text
         _id = entry.id if "id" in entry else entry.link
         published_at = (
@@ -56,16 +53,15 @@ class RSSListener(
             published_at = entry.updated_parsed
         return ArticleModel(
             id=_id,
-            published_at=datetime.fromtimestamp(
-                mktime(published_at),
-            )
-            if published_at
-            else None,
+            published_at=mktime(published_at) if published_at else None,
             title=entry.title,
             url=entry.link if "link" in entry else _id,
             text=text.strip(),
             images=tuple(img["src"] for img in soup.find_all("img")),
             authors=authors,
+            categories=tuple(tag.term for tag in entry.tags)
+            if "tags" in entry
+            else (),
         )
 
     async def receive(

@@ -31,15 +31,13 @@ async def test_receive_feed(
     _http_get_mock(monkeypatch, mock_data)
     listener = RSSListener(url="http://q")
     feed = await listener.receive()  # pylint: disable=protected-access
-    assert feed == (
-        ArticleModel(
-            id="https://aaa.ccc",
-            published_at=datetime(2022, 11, 23, 16, 22, 24),
-            grabbed_at=datetime(2012, 1, 14, 12, 0, 1, tzinfo=timezone.utc),
-            title="FOO",
-            url="https://aaa.ccc",
-            text="BAR",
-            images=(),
-            authors=("baz",),
-        ),
-    )
+    assert len(feed) == 2, feed
+    assert feed[1].json(indent=2) == ArticleModel(
+        id="https://aaa.ccc",
+        published_at=datetime(2022, 11, 23, 19, 22, 24, tzinfo=timezone.utc),
+        grabbed_at=datetime(2012, 1, 14, 12, 0, 1, tzinfo=timezone.utc),
+        title="FOO",
+        url="https://aaa.ccc",
+        text="BAR",
+        categories=("a", "b", "c"),
+    ).json(indent=2)
