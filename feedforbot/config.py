@@ -99,14 +99,13 @@ def _make_scheduler_from_config(
     transport_cls = _transport_from_config(config)
     listener_cls = _listener_from_config(config)
     listener = listener_cls(**config.listener.params)
+    transport = transport_cls(**config.transport.params)
     return Scheduler(
         config.rule,
         listener=listener,
-        transport=transport_cls(
-            **config.transport.params,
-        ),
+        transport=transport,
         cache=cache_cls(
-            id=f"{transport_cls}-{listener_cls}",
+            id=f"{transport}-{listener}",
         ),
     )
 
