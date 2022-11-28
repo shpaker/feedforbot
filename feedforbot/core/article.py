@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, validator
 
 from feedforbot.core.utils import now
 
@@ -32,3 +32,14 @@ class ArticleModel(
         other: Any,
     ) -> Any:
         return self.id == other.id
+
+    @validator("published_at")
+    def _published_at(  # pylint: disable=no-self-argument
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value.replace(tzinfo=timezone.utc)
+        return value
