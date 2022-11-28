@@ -41,5 +41,5 @@ class ArticleModel(
         if value is None:
             return None
         if value.tzinfo is None:
-            value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=timezone.utc)
         return value
