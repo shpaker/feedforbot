@@ -31,7 +31,7 @@ def main():
     listener=RSSListener('https://www.debian.org/News/news'),
     transport=TelegramBotTransport(
       token='123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD',
-      to="@channel",
+      to='@channel',
     )
   )
   scheduler.run()
@@ -63,4 +63,10 @@ schedulers:
 
 ```commandline
 feedforbot --verbose config.yml
+```
+
+### Docker 
+
+```commandline
+docker run shpaker/feedforbot --help
 ```

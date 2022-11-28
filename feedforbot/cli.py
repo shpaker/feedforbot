@@ -2,10 +2,13 @@ import asyncio
 from logging import basicConfig
 from pathlib import Path
 
+import click
+import sentry_sdk
 from click import Context, argument, command, echo, option, pass_context, types
 
 from feedforbot import VERSION
 from feedforbot.config import read_config
+from feedforbot.constants import APP_NAME
 
 VERBOSITY_LEVEL = (
     "WARNING",
@@ -37,7 +40,11 @@ def _echo_version(
         path_type=Path,
     ),
 )
-@option("--verbose", "-v", count=True)
+@option(
+    "--verbose",
+    "-v",
+    count=True,
+)
 @option(
     "--version",
     "-V",
@@ -46,16 +53,33 @@ def _echo_version(
     expose_value=False,
     is_eager=True,
     callback=_echo_version,
+    help="Show script version and exit.",
+)
+@option(
+    "--sentry",
+    type=click.STRING,
+    default=None,
+    show_default=True,
+    help="Sentry DSN.",
 )
 @pass_context
 def main(
     ctx: Context,  # noqa
     configuration: Path,
     verbose: int,
+    sentry: str | None,
 ) -> None:
-    ctx.obj = {
-        "verbose": verbose,
-    }
+    """
+    Bot for forwarding updates from RSS/Atom feeds to Telegram messenger
+    https://github.com/shpaker/feedforbot
+    """
+    ctx.obj = {"verbose": verbose}
+    if sentry is not None:
+        sentry_sdk.init(
+            dsn=sentry,
+            release=f"{APP_NAME}-{VERSION}",
+            attach_stacktrace=True,
+        )
     if verbose >= len(VERBOSITY_LEVEL):
         verbose = len(VERBOSITY_LEVEL) - 1
     log_level = VERBOSITY_LEVEL[verbose]
