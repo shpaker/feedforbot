@@ -25,6 +25,7 @@ import asyncio
 
 from feedforbot import Scheduler, TelegramBotTransport, RSSListener
 
+
 def main():
   loop = asyncio.new_event_loop()
   asyncio.set_event_loop(loop)
@@ -43,9 +44,9 @@ if __name__ == '__main__':
   main()
 ```
 
-### As cli app
+### CLI
 
-#### Save to file `config.yml` data:
+#### Save to file `config.yml` data
 
 ```yaml
 cache:
@@ -61,6 +62,7 @@ schedulers:
         token: '123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD'
         to: '@channel'
 ```
+
 #### Start script
 
 ```commandline
@@ -69,6 +71,14 @@ feedforbot --verbose config.yml
 
 ### Docker 
 
+#### Docker Hub
+
 ```commandline
 docker run shpaker/feedforbot --help
+```
+
+#### GHCR
+
+```commandline
+docker run ghcr.io/shpaker/feedforbot --help
 ```
