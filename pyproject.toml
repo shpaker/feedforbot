@@ -11,7 +11,7 @@ repository = "https://github.com/shpaker/feedforbot"
 feedforbot = 'feedforbot.cli:main'
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.7.2"
 httpx = "^0.23.1"
 feedparser = "^6.0.10"
 pydantic = "^1.10.2"
@@ -41,21 +41,6 @@ types-pyyaml = "^6.0.12.2"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-line-length = 79
-verbose = 1
-color = true
-exclude = '''
-(
-  /(
-      \.eggs
-    | \.git
-    | \.mypy_cache
-    | \.pytest_cache
-    | \.venv
-  )/
-)
-'''
-
 [tool.isort]
 multi_line_output = 3
 include_trailing_comma = true
@@ -67,7 +52,7 @@ src_paths = ["feedforbot", "tests"]
 skip = [".mypy_cache", ".pytest_cache", "venv"]
 
 [tool.pylint.messages_control]
-disable = "missing-docstring, no-member, too-few-public-methods, logging-fstring-interpolation"
+disable = "missing-docstring, no-member, too-few-public-methods, logging-fstring-interpolation, too-many-arguments"
 
 [tool.pylint.format]
 max-line-length = "79"
