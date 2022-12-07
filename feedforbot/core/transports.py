@@ -31,12 +31,16 @@ class TelegramBotTransport(
         token: str,
         to: str,
         template: Template = DEFAULT_MESSAGE_TEMPLATE,
+        disable_notification: bool = False,
+        disable_web_page_preview: bool = False,
     ) -> None:
         if isinstance(template, str):
             template = Template(template)
         self._to = to
         self._api_url = f"https://api.telegram.org/bot{token}/sendMessage"
         self._message_template = template
+        self._disable_web_page_preview = disable_web_page_preview
+        self._disable_notification = disable_notification
 
     def __repr__(self) -> str:
         return f"<{APP_NAME}.{self.__class__.__name__}: {self._to}>"
@@ -54,6 +58,8 @@ class TelegramBotTransport(
                         **article.dict(by_alias=True),
                     ),
                     "parse_mode": "HTML",
+                    "disable_notification": self._disable_notification,
+                    "disable_web_page_preview": self._disable_web_page_preview,
                 },
             )
         except (HTTPError, RequestError) as exc:
