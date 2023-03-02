@@ -48,19 +48,53 @@ if __name__ == '__main__':
 
 #### Save to file `config.yml` data
 
-```yaml
+```yaml  
+---
 cache:
   type: 'files'
 schedulers:
   - listener:
       type: 'rss'
       params:
-        url: 'https://www.debian.org/News/news'
+        url: 'https://habr.com/ru/rss/all/all/?fl=ru'
     transport:
       type: 'telegram_bot'
       params:
         token: '123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD'
-        to: '@channel'
+        to: '@tmfeed'
+        template: |-
+          <b>{{ TITLE }}</b> #habr
+          {{ ID }}
+          <b>Tags</b>: {% for category in CATEGORIES %}{{ category }}{{ ", " if not loop.last else "" }}{% endfor %}
+          <b>Author</b>: <a href="https://habr.com/users/{{ AUTHORS[0] }}">{{ AUTHORS[0] }}</a>
+  - listener:
+      type: 'rss'
+      params:
+        url: 'https://habr.com/ru/rss/news/?fl=ru'
+    transport:
+      type: 'telegram_bot'
+      params:
+        token: '123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD'
+        to: '@tmfeed'
+        template: |-
+          <b>{{ TITLE }}</b> #habr
+          {{ ID }}
+          <b>Tags</b>: {% for category in CATEGORIES %}{{ category }}{{ ", " if not loop.last else "" }}{% endfor %}
+  - listener:
+      type: 'rss'
+      params:
+        url: 'http://www.opennet.ru/opennews/opennews_all.rss'
+    transport:
+      type: 'telegram_bot'
+      params:
+        token: '123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD'
+        to: '@tmfeed'
+        disable_web_page_preview: yes
+        template: |-
+          <b>{{ TITLE }}</b> #opennet
+          {{ URL }}
+
+          {{ TEXT }}
 ```
 
 #### Start script
