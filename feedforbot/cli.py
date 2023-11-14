@@ -20,7 +20,7 @@ VERBOSITY_LEVEL = (
 
 def _echo_version(
     ctx: Context,
-    param: bool,  # noqa, pylint: disable=unused-argument
+    param: bool,  # noqa: ARG001
     value: str,
 ) -> None:
     if not value or ctx.resilient_parsing:
@@ -64,7 +64,7 @@ def _echo_version(
 )
 @pass_context
 def main(
-    ctx: Context,  # noqa
+    ctx: Context,
     configuration: Path,
     verbose: int,
     sentry: str | None,

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from time import mktime
+from collections.abc import Iterable
+from email.utils import parsedate_to_datetime
 
 from bs4 import BeautifulSoup
 from feedparser import FeedParserDict, parse
@@ -9,6 +10,10 @@ from feedforbot.constants import APP_NAME
 from feedforbot.core.article import ArticleModel
 from feedforbot.core.utils import make_get_request
 from feedforbot.exceptions import ListenerReceiveError
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class ListenerBase(
@@ -20,7 +25,7 @@ class ListenerBase(
     @abstractmethod
     async def receive(
         self,
-    ) -> tuple[ArticleModel, ...]:
+    ) -> Iterable[ArticleModel]:
         raise NotImplementedError
 
 
@@ -36,7 +41,7 @@ class RSSListener(
     def __repr__(self) -> str:
         return f"<{APP_NAME}.{self.__class__.__name__}: {self.url}>"
 
-    def _parse_entry(  # noqa
+    def _parse_entry(
         self,
         entry: FeedParserDict,
     ) -> ArticleModel:
@@ -46,14 +51,14 @@ class RSSListener(
             authors = tuple(author.name for author in entry.authors)
         text = soup.text
         _id = entry.id if "id" in entry else entry.link
-        published_at = (
-            None if "published_parsed" not in entry else entry.published_parsed
-        )
-        if published_at is None and "updated_parsed" in entry:
-            published_at = entry.updated_parsed
+        published_at: datetime | None = None
+        if "published" in entry:
+            published_at = parsedate_to_datetime(entry.published)
+        if published_at is None and "updated" in entry:
+            published_at = parsedate_to_datetime(entry.updated)
         return ArticleModel(
             id=_id,
-            published_at=mktime(published_at) if published_at else None,
+            published_at=published_at,
             title=entry.title,
             url=entry.link if "link" in entry else _id,
             text=text.strip(),
@@ -66,7 +71,7 @@ class RSSListener(
 
     async def receive(
         self,
-    ) -> tuple[ArticleModel, ...]:
+    ) -> Iterable[ArticleModel]:
         try:
             response = await make_get_request(self.url)
         except (HTTPError, RequestError) as exc:

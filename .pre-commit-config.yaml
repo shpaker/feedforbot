@@ -2,38 +2,53 @@ repos:
   -
     repo: local
     hooks:
-      - id: isort
-        name: isort
-        entry: isort
-        language: system
-        files: ^(feedforbot|tests)/.+\.py$
+
       - id: black
         name: black
-        entry: black
+        entry: python -m black
         language: system
-        files: ^(feedforbot|tests)/.+\.py$
-      - id: flake8
-        name: flake8
-        entry: flake8
+        files: ^(src|tests)/.+\.py$
+
+      - id: isort
+        name: isort
+        entry: python -m isort
         language: system
-        files: ^(feedforbot|tests)/.+\.py$
-      - id: pylint
-        name: pylint
-        entry: pylint
+        files: ^(src|tests)/.+\.py$
+
+      - id: ruff
+        name: ruff
+        entry: python -m ruff check --fix
         language: system
-        files: ^(feedforbot|tests)/.+\.py$
+        files: ^(src|tests)/.+\.py$
+
       - id: mypy
         name: mypy
-        entry: mypy
+        entry: python -m mypy
         language: system
-        files: ^(feedforbot|tests)/.+\.py$
+        files: ^(src|test)/.+\.py$
+        args: [--show-error-codes]
+
+      - id: bandit
+        name: bandit
+        entry: just bandir
+        language: system
+        pass_filenames: false
+        files: ^(src)/.+\.py$
+
+      - id: safety
+        name: safety
+        entry: just safety
+        language: system
+        pass_filenames: false
+        files: ^(poetry.lock)$
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: "v3.4.0"
+    rev: "v4.5.0"
     hooks:
       - id: check-added-large-files
       - id: check-json
       - id: check-merge-conflict
-#      - id: check-yaml
+      - id: check-yaml
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: requirements-txt-fixer
