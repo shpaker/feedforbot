@@ -55,9 +55,7 @@ class RSSListener(
             published_at = parsedate_to_datetime(entry.updated)
         return ArticleModel(
             id=_id,
-            published_at=published_at  # type: ignore
-            if published_at
-            else None,
+            published_at=published_at,
             title=entry.title,
             url=entry.link if "link" in entry else _id,
             text=text.strip(),

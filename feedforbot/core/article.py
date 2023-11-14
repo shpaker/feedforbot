@@ -36,7 +36,7 @@ class ArticleModel(
     ) -> Any:
         return self.id == other.id
 
-    @field_validator("published_at")  # type: ignore
+    @field_validator("published_at")
     @classmethod
     def _published_at(
         cls,
