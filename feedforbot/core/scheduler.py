@@ -46,7 +46,7 @@ class Scheduler:
                 f"SEND\n"
                 f"  from : {self.listener}\n"
                 f"  ids  :\n"
-                f"    {ids}"
+                f"    {ids}",
             )
         failed = await self.transport.send(*to_send)
         if failed:
@@ -55,7 +55,7 @@ class Scheduler:
                 f"FAILED\n"
                 f"  from : {self.listener}\n"
                 f"  ids  :\n"
-                f"    {ids}"
+                f"    {ids}",
             )
         to_cache = tuple(
             article for article in articles if article not in failed
@@ -66,13 +66,11 @@ class Scheduler:
         self,
     ) -> None:
         logger.info(
-            (
-                f"SCHEDULER\n"
-                f"  rule      : {self.cron_rule}\n"
-                f"  listen    : {self.listener}\n"
-                f"  transport : {self.transport}\n"
-                f"  cache     : {self.cache}"
-            )
+            f"SCHEDULER\n"
+            f"  rule      : {self.cron_rule}\n"
+            f"  listen    : {self.listener}\n"
+            f"  transport : {self.transport}\n"
+            f"  cache     : {self.cache}",
         )
         crontab = Cron(
             spec=self.cron_rule,

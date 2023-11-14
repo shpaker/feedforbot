@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from time import mktime
 
 from bs4 import BeautifulSoup
@@ -20,7 +21,7 @@ class ListenerBase(
     @abstractmethod
     async def receive(
         self,
-    ) -> tuple[ArticleModel, ...]:
+    ) -> Iterable[ArticleModel]:
         raise NotImplementedError
 
 
@@ -36,7 +37,7 @@ class RSSListener(
     def __repr__(self) -> str:
         return f"<{APP_NAME}.{self.__class__.__name__}: {self.url}>"
 
-    def _parse_entry(  # noqa
+    def _parse_entry(
         self,
         entry: FeedParserDict,
     ) -> ArticleModel:
@@ -53,7 +54,9 @@ class RSSListener(
             published_at = entry.updated_parsed
         return ArticleModel(
             id=_id,
-            published_at=mktime(published_at) if published_at else None,
+            published_at=mktime(published_at)  # type: ignore
+            if published_at
+            else None,
             title=entry.title,
             url=entry.link if "link" in entry else _id,
             text=text.strip(),
@@ -66,7 +69,7 @@ class RSSListener(
 
     async def receive(
         self,
-    ) -> tuple[ArticleModel, ...]:
+    ) -> Iterable[ArticleModel]:
         try:
             response = await make_get_request(self.url)
         except (HTTPError, RequestError) as exc:

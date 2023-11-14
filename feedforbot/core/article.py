@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import BaseModel, Field, HttpUrl, validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 from feedforbot.core.utils import now
 
@@ -14,9 +14,12 @@ def _to_upper(
 
 class ArticleModel(
     BaseModel,
-    alias_generator=_to_upper,
-    allow_population_by_field_name=True,
 ):
+    model_config = ConfigDict(
+        alias_generator=_to_upper,
+        populate_by_name=True,
+    )
+
     id: str
     published_at: datetime | None = None
     grabbed_at: datetime = Field(default_factory=now)
@@ -33,8 +36,9 @@ class ArticleModel(
     ) -> Any:
         return self.id == other.id
 
-    @validator("published_at")
-    def _published_at(  # pylint: disable=no-self-argument
+    @field_validator("published_at")  # type: ignore
+    @classmethod
+    def _published_at(
         cls,
         value: datetime | None,
     ) -> datetime | None:

@@ -1,6 +1,6 @@
 from enum import Enum
 from pathlib import Path
-from typing import Any, Type
+from typing import Any
 
 from pydantic import BaseModel
 from yaml import safe_load
@@ -72,23 +72,23 @@ class _ConfigModel(BaseModel):
 
 def _cache_from_config(
     config: _ConfigModel,
-) -> Type[CacheProtocol]:
+) -> type[CacheProtocol]:
     name = config.cache.type.name
-    return _CacheConfigMapping[name].value  # type: ignore
+    return _CacheConfigMapping[name].value
 
 
 def _listener_from_config(
     scheduler_config: _SchedulerConfigModel,
-) -> Type[ListenerProtocol]:
+) -> type[ListenerProtocol]:
     name = scheduler_config.listener.type.name
-    return _ListenerConfigMapping[name].value  # type: ignore
+    return _ListenerConfigMapping[name].value
 
 
 def _transport_from_config(
     scheduler_config: _SchedulerConfigModel,
-) -> Type[TransportProtocol]:
+) -> type[TransportProtocol]:
     name = scheduler_config.transport.type.name
-    return _TransportConfigMapping[name].value  # type: ignore
+    return _TransportConfigMapping[name].value
 
 
 def _make_scheduler_from_config(
@@ -113,7 +113,7 @@ def _make_scheduler_from_config(
 def read_config(
     path: Path,
 ) -> tuple[Scheduler, ...]:
-    with open(path, "r", encoding="utf-8") as fh:
+    with path.open(encoding="utf-8", mode="r") as fh:
         data = safe_load(fh.read())
     config = _ConfigModel(**data)
     cache_cls = _cache_from_config(config)

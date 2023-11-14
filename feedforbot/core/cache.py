@@ -1,7 +1,8 @@
 import json
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 import aiofiles
 import aiofiles.os
@@ -15,7 +16,7 @@ from feedforbot.core.utils import make_sha2
 class CacheBase(ABC):
     def __init__(
         self,
-        id: str,  # noqa, pylint: disable=redefined-builtin
+        id: str,
     ) -> None:
         self.id = id
 
@@ -32,7 +33,7 @@ class CacheBase(ABC):
     @abstractmethod
     async def read(
         self,
-    ) -> Sequence[ArticleModel] | None:
+    ) -> Iterable[ArticleModel] | None:
         raise NotImplementedError
 
 
@@ -43,7 +44,7 @@ class InMemoryCache(
         self,
         **kwargs: Any,
     ):
-        self._cache: tuple[ArticleModel, ...] | None = None
+        self._cache: Iterable[ArticleModel] | None = None
         super().__init__(**kwargs)
 
     async def write(
@@ -54,7 +55,7 @@ class InMemoryCache(
 
     async def read(
         self,
-    ) -> Sequence[ArticleModel] | None:
+    ) -> Iterable[ArticleModel] | None:
         return self._cache
 
 
@@ -63,7 +64,7 @@ class FilesCache(
 ):
     def __init__(
         self,
-        id: str,  # noqa, pylint: disable=redefined-builtin
+        id: str,
         data_dir: Path = DEFAULT_FILES_CACHE_DIR,
     ) -> None:
         self.data_dir = data_dir.resolve()
@@ -86,12 +87,12 @@ class FilesCache(
                 orjson.dumps(
                     [article.dict() for article in articles],
                     option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS,
-                )
+                ),
             )
 
     async def read(
         self,
-    ) -> tuple[ArticleModel, ...] | None:
+    ) -> Iterable[ArticleModel] | None:
         if not await aiofiles.os.path.exists(self.cache_path):
             return None
         async with aiofiles.open(
@@ -101,7 +102,7 @@ class FilesCache(
             contents = await fh.read()
         if not contents:
             return None
-        return tuple(ArticleModel(**data) for data in json.loads(contents))
+        return [ArticleModel(**data) for data in json.loads(contents)]
 
     async def _ensure_data_dir(
         self,

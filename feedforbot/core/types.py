@@ -1,4 +1,5 @@
-from typing import Protocol, Sequence
+from collections.abc import Iterable
+from typing import Protocol
 
 from feedforbot.core.article import ArticleModel
 
@@ -14,7 +15,7 @@ class CacheProtocol(
 
     async def read(
         self,
-    ) -> Sequence[ArticleModel] | None:
+    ) -> Iterable[ArticleModel] | None:
         ...
 
 
