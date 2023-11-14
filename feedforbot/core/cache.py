@@ -102,7 +102,7 @@ class FilesCache(
             contents = await fh.read()
         if not contents:
             return None
-        return [ArticleModel(**data) for data in json.loads(contents)]
+        return tuple(ArticleModel(**data) for data in json.loads(contents))
 
     async def _ensure_data_dir(
         self,
