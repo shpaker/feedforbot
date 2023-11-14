@@ -10,8 +10,7 @@
     <item>
       <title><![CDATA[FOO]]></title>
       <guid isPermaLink="true">https://aaa.ccc</guid>
-      <description>
-        <![CDATA[BAR]]></description>
+      <description><![CDATA[BAR]]></description>
       <pubDate>Wed, 23 Nov 2022 19:22:24 GMT</pubDate>
       <dc:creator/>
       <category>a</category>

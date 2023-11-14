@@ -39,7 +39,7 @@ async def test_receive_feed(
         == ArticleModel(
             id="https://aaa.ccc",
             published_at=datetime(
-                2022, 11, 23, 16, 22, 24, tzinfo=timezone.utc
+                2022, 11, 23, 19, 22, 24, tzinfo=timezone.utc
             ),
             grabbed_at=datetime(2012, 1, 14, 12, 0, 1, tzinfo=timezone.utc),
             title="FOO",

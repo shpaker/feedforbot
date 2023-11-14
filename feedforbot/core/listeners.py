@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
+from datetime import datetime
 from time import mktime
-
+from email.utils import parsedate_to_datetime
 from bs4 import BeautifulSoup
 from feedparser import FeedParserDict, parse
 from httpx import HTTPError, RequestError
@@ -47,14 +48,14 @@ class RSSListener(
             authors = tuple(author.name for author in entry.authors)
         text = soup.text
         _id = entry.id if "id" in entry else entry.link
-        published_at = (
-            None if "published_parsed" not in entry else entry.published_parsed
-        )
-        if published_at is None and "updated_parsed" in entry:
-            published_at = entry.updated_parsed
+        published_at: datetime | None = None
+        if "published" in entry:
+            published_at = parsedate_to_datetime(entry.published)
+        if published_at is None and "updated" in entry:
+            published_at = parsedate_to_datetime(entry.updated)
         return ArticleModel(
             id=_id,
-            published_at=mktime(published_at)  # type: ignore
+            published_at=published_at  # type: ignore
             if published_at
             else None,
             title=entry.title,
