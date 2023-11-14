@@ -59,7 +59,7 @@ src_paths = ["feedforbot", "tests"]
 skip = [".mypy_cache", ".pytest_cache", "venv"]
 
 [tool.mypy]
-python_version = 3.8
+python_version = 3.10
 plugins = [
   "pydantic.mypy"
 ]

@@ -14,5 +14,7 @@ bandit:
 safety:
   poetry run safety --disable-optional-telemetry-data check --full-report --file poetry.lock
 
+tests: pytest
+
 pytest:
   poetry run pytest -vv
