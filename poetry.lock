@@ -527,6 +527,9 @@ files = [
     {file = "isort-5.12.0.tar.gz", hash = "sha256:8bef7dde241278824a6d83f44a544709b065191b95b6e50894bdc722fcba0504"},
 ]
 
+[package.dependencies]
+colorama = {version = ">=0.4.3", optional = true, markers = "extra == \"colors\""}
+
 [package.extras]
 colors = ["colorama (>=0.4.3)"]
 pipfile-deprecated-finder = ["pip-shims (>=0.5.2)", "pipreqs", "requirementslib"]
@@ -1593,4 +1596,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10"
-content-hash = "0dfd0ba54af4c574af156de91a4f010ac24604ad6bf494b2927a729df8aa7e27"
+content-hash = "e2ffa1d82bdff5bf5d921e603df77d39a3e70624da9896c3dde87d9de222aac9"
