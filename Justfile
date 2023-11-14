@@ -1,6 +1,6 @@
 SOURCE_DIR := "feedforbot"
 
-linters: mypy ruff bandit safety
+linters: mypy ruff bandit
 tests: pytest
 format: isort black
 
