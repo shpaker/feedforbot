@@ -1,7 +1,15 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    field_validator,
+    field_serializer,
+)
+from pydantic_core.core_schema import SerializationInfo
 
 from feedforbot.core.utils import now
 
@@ -35,6 +43,22 @@ class ArticleModel(
         other: Any,
     ) -> Any:
         return self.id == other.id
+
+    @field_serializer("url")
+    def serialize_url(
+        self,
+        value: HttpUrl,
+        _info: SerializationInfo,
+    ) -> str:
+        return str(value)
+
+    @field_serializer("images")
+    def serialize_images(
+        self,
+        value: tuple[HttpUrl, ...],
+        _info: SerializationInfo,
+    ) -> tuple[str, ...]:
+        return tuple(str(entry) for entry in value)
 
     @field_validator("published_at")
     @classmethod

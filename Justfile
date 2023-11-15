@@ -1,6 +1,6 @@
 SOURCE_DIR := "feedforbot"
 
-linters: mypy ruff bandit
+linters: mypy ruff bandit safety
 tests: pytest
 format: isort black
 
@@ -24,3 +24,6 @@ safety:
 
 pytest:
   poetry run pytest -vv
+
+help:
+  python -m {{ SOURCE_DIR }} --help
