@@ -57,7 +57,7 @@ class ArticleModel(
         self,
         value: tuple[HttpUrl, ...],
         _info: SerializationInfo,
-    ) -> tuple[str]:
+    ) -> tuple[str, ...]:
         return tuple(str(entry) for entry in value)
 
     @field_validator("published_at")
