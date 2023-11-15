@@ -24,3 +24,6 @@ safety:
 
 pytest:
   poetry run pytest -vv
+
+help:
+  python -m {{ SOURCE_DIR }} --help

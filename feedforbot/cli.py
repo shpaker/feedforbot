@@ -4,29 +4,12 @@ from pathlib import Path
 
 import click
 import sentry_sdk
-from click import Context, argument, command, echo, option, pass_context, types
+from click import Context, argument, command, option, pass_context, types
 
 from feedforbot import VERSION
 from feedforbot.config import read_config
-from feedforbot.constants import APP_NAME
-
-VERBOSITY_LEVEL = (
-    "WARNING",
-    "INFO",
-    "DEBUG",
-    "NOTSET",
-)
-
-
-def _echo_version(
-    ctx: Context,
-    param: bool,  # noqa: ARG001
-    value: str,
-) -> None:
-    if not value or ctx.resilient_parsing:
-        return
-    echo(VERSION)
-    ctx.exit()
+from feedforbot.constants import APP_NAME, VERBOSITY_LEVELS
+from feedforbot.utils import echo_version
 
 
 @command()
@@ -52,7 +35,7 @@ def _echo_version(
     default=False,
     expose_value=False,
     is_eager=True,
-    callback=_echo_version,
+    callback=echo_version,
     help="Show script version and exit.",
 )
 @option(
@@ -80,9 +63,9 @@ def main(
             release=f"{APP_NAME}-{VERSION}",
             attach_stacktrace=True,
         )
-    if verbose >= len(VERBOSITY_LEVEL):
-        verbose = len(VERBOSITY_LEVEL) - 1
-    log_level = VERBOSITY_LEVEL[verbose]
+    if verbose >= len(VERBOSITY_LEVELS):
+        verbose = len(VERBOSITY_LEVELS) - 1
+    log_level = VERBOSITY_LEVELS[verbose]
     basicConfig(level=log_level)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

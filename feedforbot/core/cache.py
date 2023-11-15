@@ -85,7 +85,7 @@ class FilesCache(
         ) as fh:
             await fh.write(
                 orjson.dumps(
-                    [article.dict() for article in articles],
+                    [article.model_dump() for article in articles],
                     option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS,
                 ),
             )
