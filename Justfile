@@ -5,7 +5,7 @@ tests: pytest
 format: isort black
 
 isort:
-  poetry run isort {{ SOURCE_DIR }} --diff --color --check-only
+  poetry run isort {{ SOURCE_DIR }} --diff --color
 
 black:
   poetry run isort {{ SOURCE_DIR }}

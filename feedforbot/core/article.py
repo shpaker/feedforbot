@@ -6,8 +6,8 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
-    field_validator,
     field_serializer,
+    field_validator,
 )
 from pydantic_core.core_schema import SerializationInfo
 

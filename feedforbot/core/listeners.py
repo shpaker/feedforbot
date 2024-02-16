@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from email.utils import parsedate_to_datetime
+from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
 from feedparser import FeedParserDict, parse
@@ -10,7 +11,6 @@ from feedforbot.constants import APP_NAME
 from feedforbot.core.article import ArticleModel
 from feedforbot.core.utils import make_get_request
 from feedforbot.exceptions import ListenerReceiveError
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from datetime import datetime

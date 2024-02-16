@@ -2,6 +2,7 @@ import asyncio
 
 from aiocron import Cron
 from sentry_sdk import capture_exception, push_scope
+
 from feedforbot.core.cache import InMemoryCache
 from feedforbot.core.types import (
     CacheProtocol,

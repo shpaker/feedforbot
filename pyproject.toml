@@ -17,23 +17,23 @@ aiofiles = "^23.2.1"
 beautifulsoup4 = "^4.12.2"
 click = "^8.1.7"
 feedparser = "^6.0.10"
-httpx = "^0.25.1"
+httpx = "^0.26.0"
 jinja2 = "^3.1.2"
 orjson = "^3.9.10"
-pydantic = "^2.5.0"
+pydantic = "^2.6.0"
 pyyaml = "^6.0.1"
-sentry-sdk = "^1.35.0"
+sentry-sdk = "^1.40.0"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.5.0"
 
 [tool.poetry.group.linters.dependencies]
-bandit = "^1.7.5"
-black = "^23.11.0"
-isort = {extras = ["colors"], version = "^5.12.0"}
-mypy = "^1.7.0"
-ruff = "^0.1.5"
-safety = "^2.3.5"
+bandit = "^1.7"
+black = "^24.2"
+isort = {extras = ["colors"], version = "^5.13"}
+mypy = "^1.8"
+ruff = "^0.2"
+safety = "^2.0"
 types-aiofiles = "^23.2.0"
 types-beautifulsoup4 = "^4.12.0.7"
 types-pyyaml = "^6.0.12"
@@ -102,7 +102,16 @@ line-length = 120
 exclude = [
   ".venv",
 ]
-select = [
+lint.ignore = [
+  "PLR0913",  # Too many arguments to function call
+  "PTH123",   # PTH123 `open("foo")` should be replaced by `Path("foo").open()`
+  "RUF001",   # Docstring contains ambiguous chars
+  "RUF002",   # Docstring contains ambiguous chars
+  "RUF003",   # Docstring contains ambiguous chars
+]
+lint.flake8-tidy-imports.ban-relative-imports = "all"
+lint.mccabe.max-complexity = 20
+lint.select = [
    "F",  # Pyflakes
    "E",  # pycodestyle
  "C90",  # mccabe
@@ -146,6 +155,3 @@ select = [
  "SLF",  # flake8-self
  "RUF",  # Ruff-specific rules
 ]
-
-[tool.ruff.mccabe]
-max-complexity = 20

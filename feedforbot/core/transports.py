@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from httpx import HTTPError, RequestError
 from jinja2 import Template
-from sentry_sdk import push_scope, capture_exception
+from sentry_sdk import capture_exception, push_scope
 
 from feedforbot.constants import APP_NAME, DEFAULT_MESSAGE_TEMPLATE
 from feedforbot.core.article import ArticleModel
@@ -27,7 +27,7 @@ class TransportBase(
 class TelegramBotTransport(
     TransportBase,
 ):
-    def __init__(  # noqa:PLR0913
+    def __init__(
         self,
         token: str,
         to: str,
