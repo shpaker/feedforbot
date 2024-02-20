@@ -80,7 +80,7 @@ class TelegramBotTransport(
                 is_success = await self._send_article(article)
             except TransportSendError as exc:
                 with push_scope() as scope:
-                    scope.set_extra(**article.model_dump())
+                    scope.set_extra('article', article.model_dump())
                     capture_exception(exc)
                 failed.append(article)
                 continue
