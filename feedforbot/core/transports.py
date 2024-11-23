@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
-
+import sentry_sdk
 from httpx import HTTPError, RequestError
 from jinja2 import Template
-from sentry_sdk import capture_exception, push_scope
 
 from feedforbot.constants import APP_NAME, DEFAULT_MESSAGE_TEMPLATE
 from feedforbot.core.article import ArticleModel
@@ -79,9 +78,10 @@ class TelegramBotTransport(
             try:
                 is_success = await self._send_article(article)
             except TransportSendError as exc:
-                with push_scope() as scope:
+                with sentry_sdk.new_scope() as scope:
+                    scope.set_tag('transport', self.__repr__())
                     scope.set_extra('article', article.model_dump())
-                    capture_exception(exc)
+                    sentry_sdk.capture_exception(exc)
                 failed.append(article)
                 continue
             if not is_success:

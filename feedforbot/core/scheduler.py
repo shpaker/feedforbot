@@ -1,7 +1,7 @@
 import asyncio
 
 from aiocron import Cron
-from sentry_sdk import capture_exception, push_scope
+import sentry_sdk
 
 from feedforbot.core.cache import InMemoryCache
 from feedforbot.core.types import (
@@ -33,8 +33,11 @@ class Scheduler:
         try:
             articles = await self.listener.receive()
         except ListenerReceiveError as exc:
-            with push_scope():
-                capture_exception(exc)
+            with sentry_sdk.new_scope() as scope:
+                scope.set_tag('cron', self.cron_rule)
+                scope.set_tag('listener', self.listener.__repr__())
+                scope.set_tag('transport', self.transport.__repr__())
+                sentry_sdk.capture_exception(exc)
             logger.warning(f"ListenerReceiveError {self.listener}")
             return
         if (cached := await self.cache.read()) is None:
