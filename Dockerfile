@@ -1,5 +1,5 @@
 FROM python:3.11-slim as base-image
-ARG POETRY_VERSION=1.2.2
+ARG POETRY_VERSION=1.8.4
 WORKDIR /service
 RUN pip install "poetry==$POETRY_VERSION"
 ADD pyproject.toml poetry.lock README.md ./
