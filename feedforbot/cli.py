@@ -6,7 +6,7 @@ import click
 import sentry_sdk
 from click import Context, argument, command, option, pass_context, types
 
-from feedforbot import VERSION
+from feedforbot import __version__
 from feedforbot.config import read_config
 from feedforbot.constants import APP_NAME, VERBOSITY_LEVELS
 from feedforbot.utils import echo_version
@@ -60,7 +60,7 @@ def main(
     if sentry is not None:
         sentry_sdk.init(
             dsn=sentry,
-            release=f"{APP_NAME}-{VERSION}",
+            release=f"{APP_NAME}-{__version__}",
             attach_stacktrace=True,
         )
     if verbose >= len(VERBOSITY_LEVELS):

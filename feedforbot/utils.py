@@ -1,6 +1,6 @@
 from click import Context, echo
 
-from feedforbot import VERSION
+from feedforbot import __version__
 
 
 def echo_version(
@@ -10,5 +10,5 @@ def echo_version(
 ) -> None:
     if not value or ctx.resilient_parsing:
         return
-    echo(VERSION)
+    echo(__version__)
     ctx.exit()
