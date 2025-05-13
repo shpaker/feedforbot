@@ -13,4 +13,4 @@ fix:
     uv run ruff check --fix --unsafe-fixes {{ SOURCE_PATH }}
 
 tests:
-    uv run pytest test_userpic.py
+    uv run pytest {{ TEST_PATH }}
