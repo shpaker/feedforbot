@@ -7,20 +7,19 @@ from feedforbot.core.types import (
     ListenerProtocol,
     TransportProtocol,
 )
-from feedforbot.version import VERSION
 
-__version__ = VERSION
+__version__ = "0.0.0"
 __all__ = (
-    "Scheduler",
-    "InMemoryCache",
-    "FilesCache",
-    "RSSListener",
-    "TelegramBotTransport",
-    "CacheProtocol",
-    "ListenerProtocol",
-    "TransportProtocol",
-    "CacheBase",
-    "ListenerBase",
-    "TransportBase",
     "VERSION",
+    "CacheBase",
+    "CacheProtocol",
+    "FilesCache",
+    "InMemoryCache",
+    "ListenerBase",
+    "ListenerProtocol",
+    "RSSListener",
+    "Scheduler",
+    "TelegramBotTransport",
+    "TransportBase",
+    "TransportProtocol",
 )

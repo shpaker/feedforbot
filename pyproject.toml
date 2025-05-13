@@ -1,6 +1,6 @@
 [project]
 name = "FeedForBot"
-version = "0.1.0"
+version = "0.0.0"
 description = "Forward links from RSS/Atom feeds to messengers"
 authors = [{ name = "Aleksandr Shpak", email = "shpaker@gmail.com" }]
 requires-python = ">=3.13"
