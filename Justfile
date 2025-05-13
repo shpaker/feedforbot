@@ -1,29 +1,16 @@
-SOURCE_DIR := "feedforbot"
+SOURCE_PATH := "feedforbot/"
+TEST_PATH := "tests/"
 
-linters: mypy ruff bandit safety
-tests: pytest
-format: isort black
+upgrade:
+    uv lock --upgrade
 
-isort:
-  poetry run isort {{ SOURCE_DIR }} --diff --color
+lint:
+    uv run ruff check {{ SOURCE_PATH }}
+    uv run python -m mypy --pretty {{ SOURCE_PATH }}
 
-black:
-  poetry run isort {{ SOURCE_DIR }}
+fix:
+    uv run ruff format {{ SOURCE_PATH }} {{ TEST_PATH }}
+    uv run ruff check --fix --unsafe-fixes {{ SOURCE_PATH }}
 
-ruff:
-  poetry run ruff check --fix --unsafe-fixes {{ SOURCE_DIR }}
-
-mypy:
-  poetry run mypy --pretty -p {{ SOURCE_DIR }}
-
-bandit:
-  poetry run bandit -r {{ SOURCE_DIR }}
-
-safety:
-  poetry run safety --disable-optional-telemetry-data check --file poetry.lock
-
-pytest:
-  poetry run pytest -vv
-
-help:
-  python -m {{ SOURCE_DIR }} --help
+tests:
+    uv run pytest test_userpic.py

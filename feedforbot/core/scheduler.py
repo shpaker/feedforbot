@@ -1,7 +1,7 @@
 import asyncio
 
-from aiocron import Cron
 import sentry_sdk
+from aiocron import Cron
 
 from feedforbot.core.cache import InMemoryCache
 from feedforbot.core.types import (
@@ -34,38 +34,28 @@ class Scheduler:
             articles = await self.listener.receive()
         except ListenerReceiveError as exc:
             with sentry_sdk.new_scope() as scope:
-                scope.set_tag('cron', self.cron_rule)
-                scope.set_tag('listener', self.listener.__repr__())
-                scope.set_tag('transport', self.transport.__repr__())
+                scope.set_tag("cron", self.cron_rule)
+                scope.set_tag("listener", self.listener.__repr__())
+                scope.set_tag("transport", self.transport.__repr__())
                 sentry_sdk.capture_exception(exc)
             logger.warning(f"ListenerReceiveError {self.listener}")
             return
         if (cached := await self.cache.read()) is None:
             await self.cache.write(*articles)
             return
-        to_send = tuple(
-            article for article in articles if article not in cached
-        )
+        to_send = tuple(article for article in articles if article not in cached)
         if to_send:
             ids = "\n    ".join([article.id for article in to_send])
             logger.info(
-                f"SEND\n"
-                f"  from : {self.listener}\n"
-                f"  ids  :\n"
-                f"    {ids}",
+                f"SEND\n  from : {self.listener}\n  ids  :\n    {ids}",
             )
         failed = await self.transport.send(*to_send)
         if failed:
             ids = "\n    ".join([article.id for article in to_send])
             logger.warning(
-                f"FAILED\n"
-                f"  from : {self.listener}\n"
-                f"  ids  :\n"
-                f"    {ids}",
+                f"FAILED\n  from : {self.listener}\n  ids  :\n    {ids}",
             )
-        to_cache = tuple(
-            article for article in articles if article not in failed
-        )
+        to_cache = tuple(article for article in articles if article not in failed)
         await self.cache.write(*to_cache)
 
     def run(

@@ -64,9 +64,7 @@ class RSSListener(
             text=text.strip(),
             images=tuple(img["src"] for img in soup.find_all("img")),
             authors=authors,
-            categories=tuple(tag.term for tag in entry.tags)
-            if "tags" in entry
-            else (),
+            categories=tuple(tag.term for tag in entry.tags) if "tags" in entry else (),
         )
 
     async def receive(

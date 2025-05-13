@@ -10,13 +10,11 @@ class CacheProtocol(
     async def write(
         self,
         *articles: ArticleModel,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def read(
         self,
-    ) -> Iterable[ArticleModel] | None:
-        ...
+    ) -> Iterable[ArticleModel] | None: ...
 
 
 class ListenerProtocol(
@@ -26,8 +24,7 @@ class ListenerProtocol(
 
     async def receive(
         self,
-    ) -> tuple[ArticleModel, ...]:
-        ...
+    ) -> tuple[ArticleModel, ...]: ...
 
 
 class TransportProtocol(
@@ -36,5 +33,4 @@ class TransportProtocol(
     async def send(
         self,
         *articles: ArticleModel,
-    ) -> list[ArticleModel]:
-        ...
+    ) -> list[ArticleModel]: ...

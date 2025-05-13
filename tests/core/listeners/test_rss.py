@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 from freezegun import freeze_time
@@ -35,15 +35,13 @@ async def test_receive_feed(
     listener = RSSListener(url=_TESTING_URL)
     feed = await listener.receive()
     assert (
-        feed[0].model_dump()
+        feed[0].model_dump()  # type: ignore
         == ArticleModel(
             id="https://aaa.ccc",
-            published_at=datetime(
-                2022, 11, 23, 19, 22, 24, tzinfo=timezone.utc
-            ),
-            grabbed_at=datetime(2012, 1, 14, 12, 0, 1, tzinfo=timezone.utc),
+            published_at=datetime(2022, 11, 23, 19, 22, 24, tzinfo=UTC),
+            grabbed_at=datetime(2012, 1, 14, 12, 0, 1, tzinfo=UTC),
             title="FOO",
-            url="https://aaa.ccc",
+            url="https://aaa.ccc",  # type: ignore
             text="BAR",
             categories=("a", "b", "c"),
         ).model_dump()
