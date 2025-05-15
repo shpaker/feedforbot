@@ -3,19 +3,17 @@ default_install_hook_types:
   - pre-commit
 
 repos:
-  - repo: local
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: "v0.5.1"
     hooks:
-      - id: mypy
-        name: mypy
-        entry: python -m mypy
-        language: system
-        'types_or': [ python, pyi ]
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.11.9"
-    hooks:
-      - id: ruff
-        args: [ --fix, --unsafe-fixes ]
-      - id: ruff-format
+      - id: go-fmt
+      # - id: go-vet
+      # - id: go-imports
+      # - id: golangci-lint
+      - id: go-unit-tests
+      - id: go-build
+      - id: go-mod-tidy
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: "v5.0.0"
     hooks:
