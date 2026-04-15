@@ -49,15 +49,6 @@ jobs:
             IMAGE_VERSION=${{ steps.extract_name_and_version.outputs.ver }}
             IMAGE_CREATED=${{ github.event.release.created_at }}
             IMAGE_REVISION=${{ github.sha }}
-          annotations: |
-            manifest:org.opencontainers.image.title=feedforbot
-            manifest:org.opencontainers.image.description=Forward links from RSS/Atom feeds to messengers
-            manifest:org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            manifest:org.opencontainers.image.url=https://github.com/${{ github.repository }}
-            manifest:org.opencontainers.image.authors=Aleksandr Shpak <shpaker@gmail.com>
-            manifest:org.opencontainers.image.version=${{ steps.extract_name_and_version.outputs.ver }}
-            manifest:org.opencontainers.image.created=${{ github.event.release.created_at }}
-            manifest:org.opencontainers.image.revision=${{ github.sha }}
-            manifest:org.opencontainers.image.licenses=MIT
+          provenance: false
           cache-from: type=registry,ref=${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.minor_ver }}
           cache-to: type=inline
