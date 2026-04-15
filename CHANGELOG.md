@@ -6,17 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 Only full releases are listed — pre-release changes are included
 in the next full version entry.
 
-## [4.0.0] — Unreleased
+## [4.0.0] — 2026-04-15
 
 ### Changed
 
 - Migrated from Poetry to uv
 - Python >=3.10 with CI matrix (3.10–3.14)
 - Structured logging throughout core modules
+- Domain layer made synchronous (async only in Scheduler)
 - Cache merges articles instead of overwriting — prevents re-sending articles that temporarily disappear from feeds
 - HTTP client reuses persistent connections and retries server errors with exponential backoff
 - Jinja2 templates rendered in sandbox (SSTI mitigation)
 - Telegram Bot API token no longer appears in logs or tracebacks
+- New articles sorted chronologically before sending
+- All GitHub Actions pinned to commit SHAs
 
 ### Added
 
@@ -25,10 +28,15 @@ in the next full version entry.
 - HTTP request timeouts (30s total, 10s connect)
 - Correlation ID per scheduler tick for log tracing
 - Docker images published to GHCR (`ghcr.io/shpaker/feedforbot`)
+- Comprehensive test suite (listeners, transports, scheduler, cache, http client, config)
+- GitHub Actions deploy workflow for tmfeed (triggers on release or config change)
 
 ### Fixed
 
 - Scheduler silently dying on unhandled tick exceptions — now catches, logs with full traceback, reports to Sentry, and continues
+- `TelegramBotTransport` silently ignoring API errors (ok=false)
+- `ArticleModel.__eq__` raising `AttributeError` on non-model types
+- `RSSListener` crashing on `<img>` tags without `src` attribute
 - Cache diff performance (set lookups instead of linear search)
 - File cache race condition on read
 - File cache datetime serialization
@@ -119,7 +127,7 @@ in the next full version entry.
 - File-based and in-memory cache backends
 - Docker support
 
-[4.0.0]: https://github.com/shpaker/feedforbot/compare/3.3.5...HEAD
+[4.0.0]: https://github.com/shpaker/feedforbot/compare/3.3.5...4.0.0
 [3.3.5]: https://github.com/shpaker/feedforbot/compare/3.3.4...3.3.5
 [3.3.4]: https://github.com/shpaker/feedforbot/compare/3.3.3...3.3.4
 [3.3.3]: https://github.com/shpaker/feedforbot/compare/3.3.2...3.3.3
