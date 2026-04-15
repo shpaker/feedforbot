@@ -11,6 +11,7 @@
 *.yml
 *.yaml
 *.json
+!.github/**
 !tmfeed/**
 redis_data/
 

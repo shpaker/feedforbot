@@ -1,0 +1,53 @@
+---
+name: Deploy tmfeed
+
+on:
+  release:
+    types: [created]
+  push:
+    branches: [main]
+    paths:
+      - 'tmfeed/config.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'push'
+      || (
+        github.event_name == 'release'
+        && !contains(github.event.release.tag_name, 'rc')
+      )
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Determine image tag
+        id: image
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ vars.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Run deploy playbook
+        working-directory: tmfeed
+        env:
+          FEEDFORBOT_TOKEN: ${{ secrets.FEEDFORBOT_TOKEN }}
+          FEEDFORBOT_SENTRY: ${{ secrets.FEEDFORBOT_SENTRY }}
+          FEEDFORBOT_IMAGE: "ghcr.io/${{ github.repository }}:${{ steps.image.outputs.tag }}"
+        run: >-
+          ansible-playbook deploy.yml
+          -i "${{ vars.DEPLOY_HOST }},"
+          -u "${{ vars.DEPLOY_USER }}"
+          --private-key ~/.ssh/id_ed25519
