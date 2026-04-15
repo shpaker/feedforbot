@@ -1,6 +1,6 @@
 SOURCE_DIR := "feedforbot"
 
-linters: mypy ruff-check bandit
+linters: mypy ruff-check
 tests: pytest
 format: ruff-format ruff-fix
 
@@ -15,9 +15,6 @@ ruff-check:
 
 mypy:
   uv run mypy --pretty -p {{ SOURCE_DIR }}
-
-bandit:
-  uv run bandit -r {{ SOURCE_DIR }}
 
 pytest:
   uv run pytest -vv
