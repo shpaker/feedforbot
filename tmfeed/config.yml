@@ -9,13 +9,13 @@ schedulers:
     transport:
       type: 'telegram_bot'
       params:
-        token: '{{ feedforbot_token }}'
+        token: '__FEEDFORBOT_TOKEN__'
         to: '@tmfeed'
         template: |-
-          <b>{{ '{{' }} TITLE {{ '}}' }}</b> #habr
-          {{ '{{' }} ID {{ '}}' }}
-          <b>Tags</b>: {{ '{%' }} for category in CATEGORIES {{ '%}' }}{{ '{{' }} category {{ '}}' }}{{ '{{' }} ", " if not loop.last else "" {{ '}}' }}{{ '{%' }} endfor {{ '%}' }}
-          <b>Author</b>: <a href="https://habr.com/users/{{ '{{' }} AUTHORS[0] {{ '}}' }}">{{ '{{' }} AUTHORS[0] {{ '}}' }}</a>
+          <b>{{ TITLE }}</b> #habr
+          {{ ID }}
+          <b>Tags</b>: {% for category in CATEGORIES %}{{ category }}{{ ", " if not loop.last else "" }}{% endfor %}
+          <b>Author</b>: <a href="https://habr.com/users/{{ AUTHORS[0] }}">{{ AUTHORS[0] }}</a>
   - listener:
       type: 'rss'
       params:
@@ -23,12 +23,12 @@ schedulers:
     transport:
       type: 'telegram_bot'
       params:
-        token: '{{ feedforbot_token }}'
+        token: '__FEEDFORBOT_TOKEN__'
         to: '@tmfeed'
         template: |-
-          <b>{{ '{{' }} TITLE {{ '}}' }}</b> #habr
-          {{ '{{' }} ID {{ '}}' }}
-          <b>Tags</b>: {{ '{%' }} for category in CATEGORIES {{ '%}' }}{{ '{{' }} category {{ '}}' }}{{ '{{' }} ", " if not loop.last else "" {{ '}}' }}{{ '{%' }} endfor {{ '%}' }}
+          <b>{{ TITLE }}</b> #habr
+          {{ ID }}
+          <b>Tags</b>: {% for category in CATEGORIES %}{{ category }}{{ ", " if not loop.last else "" }}{% endfor %}
   - listener:
       type: 'rss'
       params:
@@ -36,11 +36,11 @@ schedulers:
     transport:
       type: 'telegram_bot'
       params:
-        token: '{{ feedforbot_token }}'
+        token: '__FEEDFORBOT_TOKEN__'
         to: '@tmfeed'
         disable_web_page_preview: yes
         template: |-
-          <b>{{ '{{' }} TITLE {{ '}}' }}</b> #opennet
-          {{ '{{' }} URL {{ '}}' }}
+          <b>{{ TITLE }}</b> #opennet
+          {{ URL }}
 
-          {{ '{{' }} TEXT {{ '}}' }}
+          {{ TEXT }}

@@ -4,6 +4,7 @@
   vars:
     feedforbot_token: "{{ lookup('env', 'FEEDFORBOT_TOKEN') }}"
     feedforbot_sentry: "{{ lookup('env', 'FEEDFORBOT_SENTRY') | default('', true) }}"
+    feedforbot_image: "{{ lookup('env', 'FEEDFORBOT_IMAGE') | default('ghcr.io/shpaker/feedforbot:latest', true) }}"
     feedforbot_dir: "/home/{{ ansible_user }}/feedforbot"
 
   tasks:
@@ -41,19 +42,37 @@
 
     - name: Create feedforbot directories
       file:
-        path: "{{ item }}"
+        path: "{{ feedforbot_dir }}"
         state: directory
         mode: "0755"
-      loop:
-        - "{{ feedforbot_dir }}"
-        - "{{ feedforbot_dir }}/feedforbot_data"
+
+    - name: Create feedforbot data directory
+      file:
+        path: "{{ feedforbot_dir }}/feedforbot_data"
+        state: directory
+        owner: "999"
+        group: "999"
+        mode: "0755"
+      become: true
+
+    - name: Fix feedforbot_data file ownership
+      become: true
+      shell: chown -R 999:999 "{{ feedforbot_dir }}/feedforbot_data"
+      changed_when: false
 
     - name: Deploy config.yml
-      template:
-        src: "config.yml.j2"
+      copy:
+        src: "config.yml"
         dest: "{{ feedforbot_dir }}/config.yml"
         mode: "0644"
       register: config_changed
+
+    - name: Inject token into config
+      replace:
+        path: "{{ feedforbot_dir }}/config.yml"
+        regexp: "__FEEDFORBOT_TOKEN__"
+        replace: "{{ feedforbot_token }}"
+      register: token_injected
 
     - name: Deploy docker-compose.yml
       copy:
@@ -62,7 +81,7 @@
         content: |
           services:
             feedforbot:
-              image: ghcr.io/shpaker/feedforbot:4.0.0rc6
+              image: {{ feedforbot_image }}
               container_name: feedforbot
               restart: always
               volumes:

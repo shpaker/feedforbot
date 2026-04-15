@@ -1,6 +1,7 @@
 import asyncio
 import threading
 import time
+from datetime import datetime, timezone
 
 import structlog
 from croniter import croniter
@@ -90,6 +91,13 @@ class Scheduler:
             merged = self._merge_articles(cached_set, articles)
             self.cache.write(*merged)
             return
+        _oldest = datetime.min.replace(tzinfo=timezone.utc)
+        to_send = tuple(
+            sorted(
+                to_send,
+                key=lambda a: a.published_at or _oldest,
+            )
+        )
         ids = [article.id for article in to_send]
         logger.info(
             "send_articles: %s ids=%s",
