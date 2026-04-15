@@ -52,5 +52,12 @@ jobs:
             IMAGE_VERSION=${{ steps.extract_name_and_version.outputs.ver }}
             IMAGE_CREATED=${{ github.event.release.created_at }}
             IMAGE_REVISION=${{ github.sha }}
+          annotations: |
+            org.opencontainers.image.title=feedforbot
+            org.opencontainers.image.description=Forward links from RSS/Atom feeds to messengers
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.extract_name_and_version.outputs.ver }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
           cache-from: type=registry,ref=${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.minor_ver }}
           cache-to: type=inline
