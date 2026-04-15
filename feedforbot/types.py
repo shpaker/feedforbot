@@ -7,12 +7,12 @@ from feedforbot.article import ArticleModel
 class HttpClientProtocol(
     Protocol,
 ):
-    async def get(
+    def get(
         self,
         url: str,
     ) -> bytes: ...
 
-    async def post(
+    def post(
         self,
         url: str,
         *,
@@ -23,12 +23,12 @@ class HttpClientProtocol(
 class CacheProtocol(
     Protocol,
 ):
-    async def write(
+    def write(
         self,
         *articles: ArticleModel,
     ) -> None: ...
 
-    async def read(
+    def read(
         self,
     ) -> Iterable[ArticleModel] | None: ...
 
@@ -38,7 +38,7 @@ class ListenerProtocol(
 ):
     source_id: str
 
-    async def receive(
+    def receive(
         self,
     ) -> tuple[ArticleModel, ...]: ...
 
@@ -46,7 +46,7 @@ class ListenerProtocol(
 class TransportProtocol(
     Protocol,
 ):
-    async def send(
+    def send(
         self,
         *articles: ArticleModel,
     ) -> list[ArticleModel]: ...

@@ -1,13 +1,13 @@
-import sentry_sdk
 from jinja2 import Template
 
-from feedforbot.__version__ import APP_NAME
+from feedforbot.__version__ import __title__
 from feedforbot.article import ArticleModel
 from feedforbot.exceptions import (
     HttpClientError,
     TransportSendError,
 )
 from feedforbot.http_client import HttpClient
+from feedforbot.sentry import capture_exception, new_scope
 from feedforbot.types import HttpClientProtocol, TransportProtocol
 
 
@@ -36,14 +36,14 @@ class TelegramBotTransport(TransportProtocol):
         )
 
     def __repr__(self) -> str:
-        return f"<{APP_NAME}.{self.__class__.__name__}: {self._to}>"
+        return f"<{__title__}.{self.__class__.__name__}: {self._to}>"
 
-    async def _send_article(
+    def _send_article(
         self,
         article: ArticleModel,
     ) -> bool:
         try:
-            response = await self._http.post(
+            response = self._http.post(
                 self._api_url,
                 data={
                     "chat_id": self._to,
@@ -64,19 +64,19 @@ class TelegramBotTransport(TransportProtocol):
         is_ok: bool = response["ok"]
         return is_ok
 
-    async def send(
+    def send(
         self,
         *articles: ArticleModel,
     ) -> list[ArticleModel]:
         failed = []
         for article in articles:
             try:
-                is_success = await self._send_article(article)
+                is_success = self._send_article(article)
             except TransportSendError as exc:
-                with sentry_sdk.new_scope() as scope:
+                with new_scope() as scope:
                     scope.set_tag("transport", self.__repr__())
                     scope.set_extra("article", article.model_dump())
-                    sentry_sdk.capture_exception(exc)
+                    capture_exception(exc)
                 failed.append(article)
                 continue
             if not is_success:

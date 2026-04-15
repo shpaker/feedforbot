@@ -33,9 +33,9 @@ The domain abstractions live in `feedforbot/` and are protocol-driven:
 - **`ListenerProtocol`** — fetches articles from a source (`receive() -> tuple[ArticleModel, ...]`). Only implementation: `RSSListener` (fetches via `HttpClient`, parses with feedparser + BeautifulSoup).
 - **`TransportProtocol`** — delivers articles (`send(*articles) -> list[ArticleModel]`). Only implementation: `TelegramBotTransport` (Jinja2 template → Telegram Bot API).
 - **`CacheProtocol`** — tracks which articles have already been sent (`read/write`). Two implementations: `InMemoryCache` (in-process, lost on restart) and `FilesCache` (JSON files in `~/.feedforbot/`, keyed by SHA2 of the listener+transport identity).
-- **`HttpClient`** — async HTTP client wrapping httpx. Raises `HttpTransportError` (network/timeout) or `HttpResponseError` (4xx/5xx) — both subclass `HttpClientError`. httpx is an implementation detail and must not leak outside this module.
+- **`HttpClient`** — synchronous HTTP client wrapping httpx. Raises `HttpTransportError` (network/timeout) or `HttpResponseError` (4xx/5xx) — both subclass `HttpClientError`. httpx is an implementation detail and must not leak outside this module.
 
-**`Scheduler`** wires these together: on each cron tick it calls `listener.receive()`, diffs against cache, sends new articles via transport, then updates the cache. First run (empty cache) populates the cache without sending — this prevents spam on startup.
+**`Scheduler`** wires these together: on each cron tick it calls `listener.receive()`, diffs against cache, sends new articles via transport, then updates the cache. Public API: `run()` (sync blocking cron loop) and `arun()` (async cron loop); `stop()` signals both to exit. Internally `_tick()` executes one iteration synchronously. Uses `croniter` directly for cron scheduling. First run (empty cache) populates the cache without sending — this prevents spam on startup.
 
 **`ArticleModel`** uses Pydantic v2 with `alias_generator=str.upper`, so template variables are uppercase (`{{ TITLE }}`, `{{ URL }}`, `{{ CATEGORIES }}`, etc.). Equality is identity-based on `id` (the feed entry ID or link).
 

@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from freezegun import freeze_time
-from pytest import mark, raises
+from pytest import raises
 
 from feedforbot.article import ArticleModel
 from feedforbot.exceptions import HttpClientError, ListenerReceiveError
@@ -23,12 +23,12 @@ class FakeHttpClient:
         self._get_response = get_response
         self._raise_on_get = raise_on_get
 
-    async def get(self, url: str) -> bytes:  # noqa: ARG002
+    def get(self, url: str) -> bytes:  # noqa: ARG002
         if self._raise_on_get is not None:
             raise self._raise_on_get
         return self._get_response
 
-    async def post(
+    def post(
         self,
         url: str,
         *,
@@ -38,15 +38,14 @@ class FakeHttpClient:
 
 
 @freeze_time("2012-01-14 12:00:01+00:00")
-@mark.asyncio
-async def test_receive_feed(
+def test_receive_feed(
     read_mock: Callable[[str], str],
 ) -> None:
     http = FakeHttpClient(
         get_response=read_mock("rss_short").encode(),
     )
-    listener = RSSListener(url=_TESTING_URL, http_client=http)  # type: ignore[abstract]
-    feed = await listener.receive()
+    listener = RSSListener(url=_TESTING_URL, http_client=http)
+    feed = listener.receive()
     assert (
         feed[0].model_dump()
         == ArticleModel(
@@ -62,15 +61,14 @@ async def test_receive_feed(
 
 
 @freeze_time("2023-04-10 12:00:00+00:00")
-@mark.asyncio
-async def test_receive_multiple_entries(
+def test_receive_multiple_entries(
     read_mock: Callable[[str], str],
 ) -> None:
     http = FakeHttpClient(
         get_response=read_mock("rss_full").encode(),
     )
-    listener = RSSListener(url=_TESTING_URL, http_client=http)  # type: ignore[abstract]
-    feed = await listener.receive()
+    listener = RSSListener(url=_TESTING_URL, http_client=http)
+    feed = listener.receive()
     expected_entries = 3
     assert len(feed) == expected_entries
 
@@ -110,18 +108,17 @@ async def test_receive_multiple_entries(
     assert feed[2].published_at is None
 
 
-@mark.asyncio
-async def test_receive_raises_on_http_error() -> None:
+def test_receive_raises_on_http_error() -> None:
     http = FakeHttpClient(
         raise_on_get=HttpClientError("fail"),
     )
-    listener = RSSListener(url=_TESTING_URL, http_client=http)  # type: ignore[abstract]
+    listener = RSSListener(url=_TESTING_URL, http_client=http)
     with raises(ListenerReceiveError):
-        await listener.receive()
+        listener.receive()
 
 
 def test_repr() -> None:
     http = FakeHttpClient()
-    listener = RSSListener(url=_TESTING_URL, http_client=http)  # type: ignore[abstract]
+    listener = RSSListener(url=_TESTING_URL, http_client=http)
     assert _TESTING_URL in repr(listener)
     assert "RSSListener" in repr(listener)

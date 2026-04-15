@@ -6,15 +6,17 @@ authors = [{ name = "Aleksandr Shpak", email = "shpaker@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-  "aiocron>=1.8,<2",
-  "aiofiles>=24.1",
+  "croniter>=6.0",
   "beautifulsoup4>=4.13,<5",
-  "click>=8.1,<9",
   "feedparser>=6.0,<7",
   "httpx>=0.28",
   "jinja2>=3.1,<4",
-  "orjson>=3.10,<4",
   "pydantic>=2.11,<3",
+]
+
+[project.optional-dependencies]
+cli = [
+  "click>=8.1,<9",
   "pyyaml>=6.0,<7",
   "sentry-sdk>=2.0,<3",
   "structlog>=24.1",
@@ -29,14 +31,15 @@ Repository = "https://github.com/shpaker/feedforbot"
 
 [dependency-groups]
 dev = [
+  "feedforbot[cli]",
   "freezegun>=1.5",
   "mypy>=1.15,<2",
   "pytest>=8.3",
   "pytest-asyncio>=0.25",
   "respx>=0.22",
   "ruff>=0.11",
-  "types-aiofiles>=24.1",
   "types-beautifulsoup4>=4.12",
+  "types-croniter>=6.0",
   "types-pyyaml>=6.0",
 ]
 
@@ -63,7 +66,7 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [[tool.mypy.overrides]]
-module = ["feedparser.*", "aiocron"]
+module = ["feedparser.*"]
 ignore_missing_imports = true
 
 [tool.ruff]

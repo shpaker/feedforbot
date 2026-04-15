@@ -1,4 +1,4 @@
-from feedforbot.__version__ import APP_NAME, VERSION
+from feedforbot.__version__ import __title__, __version__
 from feedforbot.cache import FilesCache, InMemoryCache
 from feedforbot.listeners import RSSListener
 from feedforbot.scheduler import Scheduler
@@ -10,10 +10,7 @@ from feedforbot.types import (
 )
 
 
-__version__ = VERSION
 __all__ = (
-    "APP_NAME",
-    "VERSION",
     "CacheProtocol",
     "FilesCache",
     "InMemoryCache",
@@ -22,4 +19,6 @@ __all__ = (
     "Scheduler",
     "TelegramBotTransport",
     "TransportProtocol",
+    "__title__",
+    "__version__",
 )

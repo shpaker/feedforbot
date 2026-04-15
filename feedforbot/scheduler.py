@@ -1,9 +1,13 @@
-import sentry_sdk
-from aiocron import Cron
+import asyncio
+import threading
+import time
+
+from croniter import croniter
 
 from feedforbot.cache import InMemoryCache
 from feedforbot.exceptions import ListenerReceiveError
 from feedforbot.logger import logger
+from feedforbot.sentry import capture_exception, new_scope
 from feedforbot.types import (
     CacheProtocol,
     ListenerProtocol,
@@ -24,32 +28,32 @@ class Scheduler:
         self.listener = listener
         self.transport = transport
         self.cache = cache or InMemoryCache(id=listener.source_id)
-        self._crontab: Cron | None = None
+        self._stop_event = threading.Event()
 
-    async def action(
+    def _tick(
         self,
     ) -> None:
         try:
-            articles = await self.listener.receive()
+            articles = self.listener.receive()
         except ListenerReceiveError as exc:
-            with sentry_sdk.new_scope() as scope:
+            with new_scope() as scope:
                 scope.set_tag("cron", self.cron_rule)
                 scope.set_tag("listener", self.listener.__repr__())
                 scope.set_tag("transport", self.transport.__repr__())
-                sentry_sdk.capture_exception(exc)
+                capture_exception(exc)
             logger.warning(
                 "listener_receive_error: %s",
                 self.listener,
             )
             return
-        if (cached := await self.cache.read()) is None:
-            await self.cache.write(*articles)
+        if (cached := self.cache.read()) is None:
+            self.cache.write(*articles)
             return
         to_send = tuple(
             article for article in articles if article not in cached
         )
         if not to_send:
-            await self.cache.write(*articles)
+            self.cache.write(*articles)
             return
         ids = [article.id for article in to_send]
         logger.info(
@@ -57,7 +61,7 @@ class Scheduler:
             self.listener,
             ids,
         )
-        failed = await self.transport.send(*to_send)
+        failed = self.transport.send(*to_send)
         if failed:
             failed_ids = [article.id for article in failed]
             logger.warning(
@@ -68,18 +72,12 @@ class Scheduler:
         to_cache = tuple(
             article for article in articles if article not in failed
         )
-        await self.cache.write(*to_cache)
+        self.cache.write(*to_cache)
 
-    def stop(
-        self,
-    ) -> None:
-        if self._crontab is not None:
-            self._crontab.stop()
-            self._crontab = None
+    def stop(self) -> None:
+        self._stop_event.set()
 
-    def run(
-        self,
-    ) -> None:
+    def run(self) -> None:
         logger.info(
             "scheduler_start: rule=%s listener=%s transport=%s cache=%s",
             self.cron_rule,
@@ -87,8 +85,33 @@ class Scheduler:
             self.transport,
             self.cache,
         )
-        self._crontab = Cron(
-            spec=self.cron_rule,
-            func=self.action,
+        self._stop_event.clear()
+        cron = croniter(self.cron_rule)
+        while not self._stop_event.is_set():
+            delay = cron.get_next(float) - time.time()
+            if delay > 0 and self._stop_event.wait(
+                timeout=delay,
+            ):
+                break
+            self._tick()
+
+    async def arun(self) -> None:
+        logger.info(
+            "scheduler_start: rule=%s listener=%s transport=%s cache=%s",
+            self.cron_rule,
+            self.listener,
+            self.transport,
+            self.cache,
         )
-        self._crontab.start()
+        self._stop_event.clear()
+        cron = croniter(self.cron_rule)
+        while not self._stop_event.is_set():
+            delay = cron.get_next(float) - time.time()
+            if delay > 0:
+                try:
+                    await asyncio.sleep(delay)
+                except asyncio.CancelledError:
+                    return
+            if self._stop_event.is_set():
+                break
+            await asyncio.to_thread(self._tick)

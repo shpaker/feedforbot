@@ -6,7 +6,8 @@ import click
 import sentry_sdk
 from click import Context, argument, command, option, pass_context, types
 
-from feedforbot.__version__ import APP_NAME, VERSION
+from feedforbot.__version__ import __title__
+from feedforbot.__version__ import __version__ as _version
 from feedforbot.cli.config import read_config
 from feedforbot.cli.configure_logging import configure_logging
 from feedforbot.cli.utils import echo_version
@@ -70,7 +71,7 @@ def main(
     if sentry is not None:
         sentry_sdk.init(
             dsn=sentry,
-            release=f"{APP_NAME}-{VERSION}",
+            release=f"{__title__}-{_version}",
             attach_stacktrace=True,
         )
     if verbose >= len(_VERBOSITY_LEVELS):
@@ -80,13 +81,16 @@ def main(
     schedulers = read_config(configuration)
 
     async def _run_forever() -> None:
-        stop_event = asyncio.Event()
+        tasks = [
+            asyncio.create_task(scheduler.arun()) for scheduler in schedulers
+        ]
 
         def _shutdown(sig: signal.Signals) -> None:
             logger.info("shutdown: signal=%s", sig.name)
             for scheduler in schedulers:
                 scheduler.stop()
-            stop_event.set()
+            for task in tasks:
+                task.cancel()
 
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
@@ -96,8 +100,6 @@ def main(
                 sig,
             )
 
-        for scheduler in schedulers:
-            scheduler.run()
-        await stop_event.wait()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     asyncio.run(_run_forever())

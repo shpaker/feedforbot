@@ -3,7 +3,7 @@ from http import HTTPStatus
 
 import httpx
 import pytest
-from pytest import mark, raises
+from pytest import raises
 from respx import MockRouter
 
 from feedforbot.exceptions import (
@@ -27,20 +27,18 @@ def _messages(
     ]
 
 
-@mark.asyncio
-async def test_get_returns_bytes(
+def test_get_returns_bytes(
     respx_mock: MockRouter,
 ) -> None:
     respx_mock.get(f"{_BASE_URL}/feed").respond(
         content=b"<rss/>",
     )
     client = HttpClient()
-    result = await client.get(f"{_BASE_URL}/feed")
+    result = client.get(f"{_BASE_URL}/feed")
     assert result == b"<rss/>"
 
 
-@mark.asyncio
-async def test_get_raises_on_error_status(
+def test_get_raises_on_error_status(
     respx_mock: MockRouter,
 ) -> None:
     respx_mock.get(f"{_BASE_URL}/feed").respond(
@@ -48,33 +46,31 @@ async def test_get_raises_on_error_status(
     )
     client = HttpClient()
     with raises(HttpResponseError):
-        await client.get(f"{_BASE_URL}/feed")
+        client.get(f"{_BASE_URL}/feed")
 
 
-@mark.asyncio
-async def test_post_returns_json(
+def test_post_returns_json(
     respx_mock: MockRouter,
 ) -> None:
     respx_mock.post(f"{_BASE_URL}/api").respond(
         json={"ok": True, "result": 42},
     )
     client = HttpClient()
-    result = await client.post(
+    result = client.post(
         f"{_BASE_URL}/api",
         data={"key": "value"},
     )
     assert result == {"ok": True, "result": 42}
 
 
-@mark.asyncio
-async def test_post_sends_json_body(
+def test_post_sends_json_body(
     respx_mock: MockRouter,
 ) -> None:
     route = respx_mock.post(f"{_BASE_URL}/api").respond(
         json={"ok": True},
     )
     client = HttpClient()
-    await client.post(
+    client.post(
         f"{_BASE_URL}/api",
         data={"chat_id": "123", "text": "hello"},
     )
@@ -82,8 +78,7 @@ async def test_post_sends_json_body(
     assert request.headers["content-type"] == "application/json"
 
 
-@mark.asyncio
-async def test_post_raises_on_error_status(
+def test_post_raises_on_error_status(
     respx_mock: MockRouter,
 ) -> None:
     respx_mock.post(f"{_BASE_URL}/api").respond(
@@ -91,14 +86,13 @@ async def test_post_raises_on_error_status(
     )
     client = HttpClient()
     with raises(HttpResponseError):
-        await client.post(
+        client.post(
             f"{_BASE_URL}/api",
             data={"key": "value"},
         )
 
 
-@mark.asyncio
-async def test_logs_request_and_response(
+def test_logs_request_and_response(
     respx_mock: MockRouter,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -108,7 +102,7 @@ async def test_logs_request_and_response(
     )
     client = HttpClient()
     with caplog.at_level(logging.DEBUG, logger="feedforbot"):
-        await client.get(f"{_BASE_URL}/data")
+        client.get(f"{_BASE_URL}/data")
 
     requests = _messages(caplog, "http_request:")
     assert len(requests) == 1
@@ -124,8 +118,7 @@ async def test_logs_request_and_response(
     assert "headers=" in details[0]
 
 
-@mark.asyncio
-async def test_logs_error_on_network_failure(
+def test_logs_error_on_network_failure(
     respx_mock: MockRouter,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -137,7 +130,7 @@ async def test_logs_error_on_network_failure(
         caplog.at_level(logging.INFO, logger="feedforbot"),
         raises(HttpTransportError),
     ):
-        await client.get(f"{_BASE_URL}/fail")
+        client.get(f"{_BASE_URL}/fail")
 
     errors = _messages(caplog, "http_error:")
     assert len(errors) == 1
@@ -145,8 +138,7 @@ async def test_logs_error_on_network_failure(
     assert "duration_ms=" in errors[0]
 
 
-@mark.asyncio
-async def test_masks_sensitive_values_in_logs(
+def test_masks_sensitive_values_in_logs(
     respx_mock: MockRouter,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -156,7 +148,7 @@ async def test_masks_sensitive_values_in_logs(
 
     client = HttpClient(sensitive_values=(token,))
     with caplog.at_level(logging.DEBUG, logger="feedforbot"):
-        await client.post(url, data={"chat_id": "1"})
+        client.post(url, data={"chat_id": "1"})
 
     for record in caplog.records:
         if record.name == "feedforbot":
@@ -166,8 +158,7 @@ async def test_masks_sensitive_values_in_logs(
     assert "***" in requests[0]
 
 
-@mark.asyncio
-async def test_masks_sensitive_values_on_error(
+def test_masks_sensitive_values_on_error(
     respx_mock: MockRouter,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -182,7 +173,7 @@ async def test_masks_sensitive_values_on_error(
         caplog.at_level(logging.INFO, logger="feedforbot"),
         raises(HttpTransportError),
     ):
-        await client.post(url, data={"chat_id": "1"})
+        client.post(url, data={"chat_id": "1"})
 
     for record in caplog.records:
         if record.name == "feedforbot":

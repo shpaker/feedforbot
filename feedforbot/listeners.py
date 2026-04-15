@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from bs4 import BeautifulSoup
 from feedparser import FeedParserDict, parse
 
-from feedforbot.__version__ import APP_NAME
+from feedforbot.__version__ import __title__
 from feedforbot.article import ArticleModel
 from feedforbot.exceptions import (
     HttpClientError,
@@ -25,10 +25,11 @@ class RSSListener(ListenerProtocol):
         http_client: HttpClientProtocol = HttpClient(),  # noqa: B008
     ) -> None:
         self.url = url
+        self.source_id = url
         self._http = http_client
 
     def __repr__(self) -> str:
-        return f"<{APP_NAME}.{self.__class__.__name__}: {self.url}>"
+        return f"<{__title__}.{self.__class__.__name__}: {self.url}>"
 
     def _parse_entry(
         self,
@@ -56,11 +57,11 @@ class RSSListener(ListenerProtocol):
             ),
         )
 
-    async def receive(
+    def receive(
         self,
     ) -> tuple[ArticleModel, ...]:
         try:
-            response = await self._http.get(self.url)
+            response = self._http.get(self.url)
         except HttpClientError as exc:
             raise ListenerReceiveError from exc
         parsed = parse(response)

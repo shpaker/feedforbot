@@ -12,8 +12,8 @@ from feedforbot.logger import logger
 from feedforbot.types import HttpClientProtocol
 
 
-class _LoggingAsyncHTTPTransport(
-    httpx.AsyncHTTPTransport,
+class _LoggingHTTPTransport(
+    httpx.HTTPTransport,
 ):
     def __init__(
         self,
@@ -29,7 +29,7 @@ class _LoggingAsyncHTTPTransport(
             masked = masked.replace(secret, "***")
         return masked
 
-    async def handle_async_request(
+    def handle_request(
         self,
         request: httpx.Request,
     ) -> httpx.Response:
@@ -55,7 +55,7 @@ class _LoggingAsyncHTTPTransport(
 
         start = time.perf_counter()
         try:
-            response = await super().handle_async_request(
+            response = super().handle_request(
                 request,
             )
         except Exception as exc:
@@ -94,16 +94,16 @@ class HttpClient(HttpClientProtocol):
         self,
         sensitive_values: Sequence[str] = (),
     ) -> None:
-        self._transport = _LoggingAsyncHTTPTransport(
+        self._transport = _LoggingHTTPTransport(
             sensitive_values=sensitive_values,
         )
 
-    async def get(self, url: str) -> bytes:
+    def get(self, url: str) -> bytes:
         try:
-            async with httpx.AsyncClient(
+            with httpx.Client(
                 transport=self._transport,
             ) as client:
-                response = await client.get(url)
+                response = client.get(url)
         except httpx.HTTPStatusError as exc:
             raise HttpResponseError from exc
         except httpx.HTTPError as exc:
@@ -112,19 +112,19 @@ class HttpClient(HttpClientProtocol):
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             raise HttpResponseError from exc
-        return response.read()
+        return response.content
 
-    async def post(
+    def post(
         self,
         url: str,
         *,
         data: dict[str, Any],
     ) -> dict[str, Any]:
         try:
-            async with httpx.AsyncClient(
+            with httpx.Client(
                 transport=self._transport,
             ) as client:
-                response = await client.post(url, json=data)
+                response = client.post(url, json=data)
         except httpx.HTTPStatusError as exc:
             raise HttpResponseError from exc
         except httpx.HTTPError as exc:

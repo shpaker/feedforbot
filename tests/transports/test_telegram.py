@@ -1,7 +1,6 @@
 from typing import Any
 
 from jinja2 import Template
-from pytest import mark
 
 from feedforbot.article import ArticleModel
 from feedforbot.exceptions import HttpClientError
@@ -34,10 +33,10 @@ class FakeHttpClient:
         self._raise_on_post = raise_on_post
         self.post_calls: list[dict[str, Any]] = []
 
-    async def get(self, url: str) -> bytes:
+    def get(self, url: str) -> bytes:
         raise NotImplementedError
 
-    async def post(
+    def post(
         self,
         url: str,
         *,
@@ -49,8 +48,7 @@ class FakeHttpClient:
         return self._post_response
 
 
-@mark.asyncio
-async def test_send_single_article() -> None:
+def test_send_single_article() -> None:
     http = FakeHttpClient()
     transport = TelegramBotTransport(
         token=_TOKEN,
@@ -58,7 +56,7 @@ async def test_send_single_article() -> None:
         http_client=http,
     )
     article = _article()
-    failed = await transport.send(article)
+    failed = transport.send(article)
     assert failed == []
     assert len(http.post_calls) == 1
     call = http.post_calls[0]
@@ -68,8 +66,7 @@ async def test_send_single_article() -> None:
     assert "https://example.com/1" in call["data"]["text"]
 
 
-@mark.asyncio
-async def test_send_multiple_articles() -> None:
+def test_send_multiple_articles() -> None:
     http = FakeHttpClient()
     transport = TelegramBotTransport(
         token=_TOKEN,
@@ -79,14 +76,13 @@ async def test_send_multiple_articles() -> None:
     a1 = _article(id="1", title="First")
     a2 = _article(id="2", title="Second")
     a3 = _article(id="3", title="Third")
-    failed = await transport.send(a1, a2, a3)
+    failed = transport.send(a1, a2, a3)
     assert failed == []
     expected_calls = 3
     assert len(http.post_calls) == expected_calls
 
 
-@mark.asyncio
-async def test_send_custom_template() -> None:
+def test_send_custom_template() -> None:
     http = FakeHttpClient()
     template = Template("Link: {{ URL }}")
     transport = TelegramBotTransport(
@@ -95,15 +91,14 @@ async def test_send_custom_template() -> None:
         template=template,
         http_client=http,
     )
-    failed = await transport.send(_article())
+    failed = transport.send(_article())
     assert failed == []
     assert http.post_calls[0]["data"]["text"] == (
         "Link: https://example.com/1"
     )
 
 
-@mark.asyncio
-async def test_send_string_template() -> None:
+def test_send_string_template() -> None:
     http = FakeHttpClient()
     transport = TelegramBotTransport(
         token=_TOKEN,
@@ -111,13 +106,12 @@ async def test_send_string_template() -> None:
         template="<b>{{ TITLE }}</b>",  # type: ignore[arg-type]
         http_client=http,
     )
-    failed = await transport.send(_article())
+    failed = transport.send(_article())
     assert failed == []
     assert http.post_calls[0]["data"]["text"] == ("<b>Test Title</b>")
 
 
-@mark.asyncio
-async def test_send_disable_notification() -> None:
+def test_send_disable_notification() -> None:
     http = FakeHttpClient()
     transport = TelegramBotTransport(
         token=_TOKEN,
@@ -125,12 +119,11 @@ async def test_send_disable_notification() -> None:
         disable_notification=True,
         http_client=http,
     )
-    await transport.send(_article())
+    transport.send(_article())
     assert http.post_calls[0]["data"]["disable_notification"] is True
 
 
-@mark.asyncio
-async def test_send_disable_web_page_preview() -> None:
+def test_send_disable_web_page_preview() -> None:
     http = FakeHttpClient()
     transport = TelegramBotTransport(
         token=_TOKEN,
@@ -138,12 +131,11 @@ async def test_send_disable_web_page_preview() -> None:
         disable_web_page_preview=True,
         http_client=http,
     )
-    await transport.send(_article())
+    transport.send(_article())
     assert http.post_calls[0]["data"]["disable_web_page_preview"] is True
 
 
-@mark.asyncio
-async def test_send_api_returns_not_ok() -> None:
+def test_send_api_returns_not_ok() -> None:
     http = FakeHttpClient(post_response={"ok": False})
     transport = TelegramBotTransport(
         token=_TOKEN,
@@ -151,12 +143,11 @@ async def test_send_api_returns_not_ok() -> None:
         http_client=http,
     )
     article = _article()
-    failed = await transport.send(article)
+    failed = transport.send(article)
     assert failed == [article]
 
 
-@mark.asyncio
-async def test_send_http_error_returns_failed() -> None:
+def test_send_http_error_returns_failed() -> None:
     http = FakeHttpClient(
         raise_on_post=HttpClientError("network error"),
     )
@@ -166,21 +157,20 @@ async def test_send_http_error_returns_failed() -> None:
         http_client=http,
     )
     article = _article()
-    failed = await transport.send(article)
+    failed = transport.send(article)
     assert failed == [article]
 
 
-@mark.asyncio
-async def test_send_partial_failure() -> None:
+def test_send_partial_failure() -> None:
     call_count = 0
 
     fail_on_call = 2
 
     class FailOnSecondHttpClient:
-        async def get(self, url: str) -> bytes:
+        def get(self, url: str) -> bytes:
             raise NotImplementedError
 
-        async def post(
+        def post(
             self,
             url: str,  # noqa: ARG002
             *,
@@ -200,7 +190,7 @@ async def test_send_partial_failure() -> None:
     a1 = _article(id="1")
     a2 = _article(id="2")
     a3 = _article(id="3")
-    failed = await transport.send(a1, a2, a3)
+    failed = transport.send(a1, a2, a3)
     assert len(failed) == 1
     assert failed[0] == a2
 
