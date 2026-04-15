@@ -24,3 +24,7 @@ schema:
 
 help:
   uv run python -m {{ SOURCE_DIR }} --help
+
+# Deploy tmfeed to VDS
+tmfeed-deploy:
+  set -a && source tmfeed/.env && set +a && ansible-playbook -i tmfeed/inventory.ini tmfeed/deploy.yml

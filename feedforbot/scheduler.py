@@ -40,6 +40,16 @@ class Scheduler:
         structlog.contextvars.bind_contextvars(tick_id=tick_id)
         try:
             self._tick_inner()
+        except Exception as exc:  # noqa: BLE001
+            with new_scope() as scope:
+                scope.set_tag("cron", self.cron_rule)
+                scope.set_tag("listener", repr(self.listener))
+                scope.set_tag("transport", repr(self.transport))
+                capture_exception(exc)
+            logger.exception(
+                "scheduler_tick_error: %s",
+                self.listener,
+            )
         finally:
             structlog.contextvars.unbind_contextvars("tick_id")
 

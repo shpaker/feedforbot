@@ -28,6 +28,7 @@ in the next full version entry.
 
 ### Fixed
 
+- Scheduler silently dying on unhandled tick exceptions — now catches, logs with full traceback, reports to Sentry, and continues
 - Cache diff performance (set lookups instead of linear search)
 - File cache race condition on read
 - File cache datetime serialization

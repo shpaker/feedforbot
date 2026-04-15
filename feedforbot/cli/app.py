@@ -125,6 +125,16 @@ def main(
                 sig,
             )
 
-        await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(
+            *tasks,
+            return_exceptions=True,
+        )
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.error(
+                    "task_crashed: index=%d error=%s",
+                    i,
+                    result,
+                )
 
     asyncio.run(_run_forever())

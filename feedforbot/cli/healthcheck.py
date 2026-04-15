@@ -6,7 +6,7 @@ from feedforbot.logger import logger
 
 async def run_healthcheck_server(
     port: int,
-    host: str = "0.0.0.0",
+    host: str = "0.0.0.0",  # noqa: S104
 ) -> None:
     async def _handle(
         reader: asyncio.StreamReader,  # noqa: ARG001

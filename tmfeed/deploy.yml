@@ -1,0 +1,121 @@
+---
+- name: Deploy FeedForBot
+  hosts: vds
+  vars:
+    feedforbot_token: "{{ lookup('env', 'FEEDFORBOT_TOKEN') }}"
+    feedforbot_sentry: "{{ lookup('env', 'FEEDFORBOT_SENTRY') | default('', true) }}"
+    feedforbot_dir: "/home/{{ ansible_user }}/feedforbot"
+
+  tasks:
+    - name: Fail if token is not set
+      fail:
+        msg: "FEEDFORBOT_TOKEN is not set in .env"
+      when: feedforbot_token == ""
+
+    - name: Install required packages
+      become: true
+      apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Ensure docker is running
+      become: true
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add user to docker group
+      become: true
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: true
+
+    - name: Reset connection to pick up docker group
+      meta: reset_connection
+
+    - name: Create feedforbot directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ feedforbot_dir }}"
+        - "{{ feedforbot_dir }}/feedforbot_data"
+
+    - name: Deploy config.yml
+      template:
+        src: "config.yml.j2"
+        dest: "{{ feedforbot_dir }}/config.yml"
+        mode: "0644"
+      register: config_changed
+
+    - name: Deploy docker-compose.yml
+      copy:
+        dest: "{{ feedforbot_dir }}/docker-compose.yml"
+        mode: "0644"
+        content: |
+          services:
+            feedforbot:
+              image: ghcr.io/shpaker/feedforbot:4.0.0rc6
+              container_name: feedforbot
+              restart: always
+              volumes:
+                - ./config.yml:/config.yml:ro
+                - ./feedforbot_data:/home/appuser/.feedforbot/
+              command: -v --healthcheck-port 8080 {{ ('--sentry ' + feedforbot_sentry) if feedforbot_sentry != '' else '' }} /config.yml
+              healthcheck:
+                test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/')"]
+                interval: 30s
+                timeout: 5s
+                retries: 3
+                start_period: 10s
+      register: compose_changed
+
+    - name: Start or recreate feedforbot
+      shell: docker compose up -d --pull always --force-recreate
+      args:
+        chdir: "{{ feedforbot_dir }}"
+      when: compose_changed.changed or config_changed.changed
+
+    - name: Ensure feedforbot is running
+      shell: docker compose up -d
+      args:
+        chdir: "{{ feedforbot_dir }}"
+      when: not (compose_changed.changed or config_changed.changed)
+
+    - name: Wait for container to be healthy
+      shell: |
+        for i in $(seq 1 30); do
+          status=$(docker inspect --format='{% raw %}{{.State.Health.Status}}{% endraw %}' feedforbot 2>/dev/null)
+          if [ "$status" = "healthy" ]; then
+            echo "Container is healthy"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "Container did not become healthy within 60s"
+        docker logs feedforbot --tail 20 2>&1
+        exit 1
+      args:
+        chdir: "{{ feedforbot_dir }}"
+      register: health_result
+
+    - name: Check container status
+      command: docker compose ps
+      args:
+        chdir: "{{ feedforbot_dir }}"
+      register: compose_status
+      changed_when: false
+
+    - name: Show status
+      debug:
+        msg:
+          - "FeedForBot is running!"
+          - "{{ health_result.stdout }}"
+          - "{{ compose_status.stdout }}"

@@ -279,3 +279,29 @@ async def test_arun_stop() -> None:
     stop_task = asyncio.create_task(stop_soon())
     task = asyncio.create_task(scheduler.arun())
     await asyncio.gather(task, stop_task)
+
+
+def test_tick_survives_unexpected_exception() -> None:
+    """Scheduler must not die when _tick_inner raises
+    an unexpected exception (e.g. cache/transport bug)."""
+
+    class BrokenCacheOnRead(FakeCache):
+        def read(self) -> Any:
+            raise RuntimeError("disk on fire")
+
+    cache = BrokenCacheOnRead(cached=[_article(id="old")])
+    transport = FakeTransport()
+    scheduler = _make_scheduler(
+        listener=FakeListener(articles=(_article(id="old"),)),
+        transport=transport,
+        cache=cache,
+    )
+
+    # First tick hits cache.read() which raises — scheduler
+    # must catch the exception instead of propagating it.
+    scheduler._tick()  # noqa: SLF001
+
+    # The scheduler is still alive (no exception propagated).
+    # Transport was never called because the error happened
+    # before send.
+    assert transport.sent == []

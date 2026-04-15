@@ -95,6 +95,11 @@ ignore = [
   "COM812",   # Trailing comma missing (conflicts with ruff format)
   "ISC001",   # Implicit string concatenation (conflicts with ruff format)
 ]
+per-file-ignores."tests/**" = [
+  "S101",   # assert is fine in tests
+  "S105",   # hardcoded passwords (fake tokens in fixtures)
+  "TRY003", # long exception messages in test helpers
+]
 flake8-tidy-imports.ban-relative-imports = "all"
 mccabe.max-complexity = 20
 isort.force-single-line = false
@@ -107,6 +112,7 @@ select = [
    "I",  # isort
   "UP",  # pyupgrade
  "YTT",  # flake8-2020
+   "S",  # flake8-bandit
  "BLE",  # flake8-blind-except
    "B",  # flake8-bugbear
  "COM",  # flake8-commas
