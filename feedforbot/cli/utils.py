@@ -1,6 +1,6 @@
 from click import Context, echo
 
-from feedforbot import VERSION
+from feedforbot.__version__ import VERSION
 
 
 def echo_version(

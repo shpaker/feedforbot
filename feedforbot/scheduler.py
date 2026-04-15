@@ -1,16 +1,14 @@
-import asyncio
-
-from aiocron import Cron
 import sentry_sdk
+from aiocron import Cron
 
-from feedforbot.core.cache import InMemoryCache
-from feedforbot.core.types import (
+from feedforbot.cache import InMemoryCache
+from feedforbot.exceptions import ListenerReceiveError
+from feedforbot.logger import logger
+from feedforbot.types import (
     CacheProtocol,
     ListenerProtocol,
     TransportProtocol,
 )
-from feedforbot.exceptions import ListenerReceiveError
-from feedforbot.logger import logger
 
 
 class Scheduler:
@@ -26,6 +24,7 @@ class Scheduler:
         self.listener = listener
         self.transport = transport
         self.cache = cache or InMemoryCache(id=listener.source_id)
+        self._crontab: Cron | None = None
 
     async def action(
         self,
@@ -34,11 +33,14 @@ class Scheduler:
             articles = await self.listener.receive()
         except ListenerReceiveError as exc:
             with sentry_sdk.new_scope() as scope:
-                scope.set_tag('cron', self.cron_rule)
-                scope.set_tag('listener', self.listener.__repr__())
-                scope.set_tag('transport', self.transport.__repr__())
+                scope.set_tag("cron", self.cron_rule)
+                scope.set_tag("listener", self.listener.__repr__())
+                scope.set_tag("transport", self.transport.__repr__())
                 sentry_sdk.capture_exception(exc)
-            logger.warning(f"ListenerReceiveError {self.listener}")
+            logger.warning(
+                "listener_receive_error: %s",
+                self.listener,
+            )
             return
         if (cached := await self.cache.read()) is None:
             await self.cache.write(*articles)
@@ -46,41 +48,47 @@ class Scheduler:
         to_send = tuple(
             article for article in articles if article not in cached
         )
-        if to_send:
-            ids = "\n    ".join([article.id for article in to_send])
-            logger.info(
-                f"SEND\n"
-                f"  from : {self.listener}\n"
-                f"  ids  :\n"
-                f"    {ids}",
-            )
+        if not to_send:
+            await self.cache.write(*articles)
+            return
+        ids = [article.id for article in to_send]
+        logger.info(
+            "send_articles: %s ids=%s",
+            self.listener,
+            ids,
+        )
         failed = await self.transport.send(*to_send)
         if failed:
-            ids = "\n    ".join([article.id for article in to_send])
+            failed_ids = [article.id for article in failed]
             logger.warning(
-                f"FAILED\n"
-                f"  from : {self.listener}\n"
-                f"  ids  :\n"
-                f"    {ids}",
+                "send_articles_failed: %s ids=%s",
+                self.listener,
+                failed_ids,
             )
         to_cache = tuple(
             article for article in articles if article not in failed
         )
         await self.cache.write(*to_cache)
 
+    def stop(
+        self,
+    ) -> None:
+        if self._crontab is not None:
+            self._crontab.stop()
+            self._crontab = None
+
     def run(
         self,
     ) -> None:
         logger.info(
-            f"SCHEDULER\n"
-            f"  rule      : {self.cron_rule}\n"
-            f"  listen    : {self.listener}\n"
-            f"  transport : {self.transport}\n"
-            f"  cache     : {self.cache}",
+            "scheduler_start: rule=%s listener=%s transport=%s cache=%s",
+            self.cron_rule,
+            self.listener,
+            self.transport,
+            self.cache,
         )
-        crontab = Cron(
+        self._crontab = Cron(
             spec=self.cron_rule,
             func=self.action,
-            loop=asyncio.get_event_loop(),
         )
-        crontab.start()
+        self._crontab.start()

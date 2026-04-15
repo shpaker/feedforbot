@@ -1,14 +1,15 @@
-FROM python:3.11-slim as base-image
-ARG POETRY_VERSION=1.8.4
+FROM python:3.14-slim AS builder
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 WORKDIR /service
-RUN pip install "poetry==$POETRY_VERSION"
-ADD pyproject.toml poetry.lock README.md ./
+ADD pyproject.toml uv.lock README.md ./
 ADD feedforbot feedforbot
-RUN poetry build
-RUN python -m venv .venv
+RUN uv build
+RUN uv venv .venv
 RUN .venv/bin/pip install dist/*.whl
 
-FROM python:3.11-slim as runtime-image
+FROM python:3.14-slim AS runtime
 WORKDIR /service
-COPY --from=base-image /service/.venv ./.venv
+COPY --from=builder /service/.venv ./.venv
 ENTRYPOINT ["/service/.venv/bin/python3", "-m", "feedforbot"]

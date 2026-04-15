@@ -1,51 +1,29 @@
+import hashlib
 import json
-from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
 
 import aiofiles
 import aiofiles.os
 import orjson
 
-from feedforbot.constants import APP_NAME, DEFAULT_FILES_CACHE_DIR
-from feedforbot.core.article import ArticleModel
-from feedforbot.core.utils import make_sha2
+from feedforbot.__version__ import APP_NAME
+from feedforbot.article import ArticleModel
+from feedforbot.types import CacheProtocol
 
 
-class CacheBase(ABC):
+_DEFAULT_FILES_CACHE_DIR = Path.home() / ".feedforbot"
+
+
+class InMemoryCache(CacheProtocol):
     def __init__(
         self,
-        id: str,
+        id: str,  # noqa: ARG002
     ) -> None:
-        self.id = id
+        self._cache: Iterable[ArticleModel] | None = None
 
     def __repr__(self) -> str:
         return f"<{APP_NAME}.{self.__class__.__name__}>"
-
-    @abstractmethod
-    async def write(
-        self,
-        *articles: ArticleModel,
-    ) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def read(
-        self,
-    ) -> Iterable[ArticleModel] | None:
-        raise NotImplementedError
-
-
-class InMemoryCache(
-    CacheBase,
-):
-    def __init__(
-        self,
-        **kwargs: Any,
-    ):
-        self._cache: Iterable[ArticleModel] | None = None
-        super().__init__(**kwargs)
 
     async def write(
         self,
@@ -59,17 +37,16 @@ class InMemoryCache(
         return self._cache
 
 
-class FilesCache(
-    CacheBase,
-):
+class FilesCache(CacheProtocol):
     def __init__(
         self,
         id: str,
-        data_dir: Path = DEFAULT_FILES_CACHE_DIR,
+        data_dir: Path = _DEFAULT_FILES_CACHE_DIR,
     ) -> None:
+        self.id = id
         self.data_dir = data_dir.resolve()
-        self.cache_path = self.data_dir / f"{make_sha2(id)}.json"
-        super().__init__(id)
+        sha = hashlib.sha256(id.encode("utf-8")).hexdigest()
+        self.cache_path = self.data_dir / f"{sha}.json"
 
     def __repr__(self) -> str:
         return f"<{APP_NAME}.{self.__class__.__name__}: {self.cache_path}>"
@@ -93,11 +70,12 @@ class FilesCache(
     async def read(
         self,
     ) -> Iterable[ArticleModel] | None:
-        if not await aiofiles.os.path.exists(self.cache_path):
+        if not await aiofiles.os.path.exists(
+            self.cache_path,
+        ):
             return None
         async with aiofiles.open(
             self.cache_path,
-            mode="r",
         ) as fh:
             contents = await fh.read()
         if not contents:

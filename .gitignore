@@ -1,3 +1,11 @@
+TODO.md
+
+.claude/
+
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
 .idea/
 .env
 .DS_Store

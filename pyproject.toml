@@ -1,67 +1,53 @@
-[tool.poetry]
-name = "FeedForBot"
+[project]
+name = "feedforbot"
 version = "0.1.0"
 description = "Forward links from RSS/Atom feeds to messengers"
-authors = ["Aleksandr Shpak <shpaker@gmail.com>"]
+authors = [{ name = "Aleksandr Shpak", email = "shpaker@gmail.com" }]
 readme = "README.md"
-homepage = "https://github.com/shpaker/feedforbot"
-repository = "https://github.com/shpaker/feedforbot"
+requires-python = ">=3.14"
+dependencies = [
+  "aiocron>=1.8,<2",
+  "aiofiles>=24.1",
+  "beautifulsoup4>=4.13,<5",
+  "click>=8.1,<9",
+  "feedparser>=6.0,<7",
+  "httpx>=0.28",
+  "jinja2>=3.1,<4",
+  "orjson>=3.10,<4",
+  "pydantic>=2.11,<3",
+  "pyyaml>=6.0,<7",
+  "sentry-sdk>=2.0,<3",
+  "structlog>=24.1",
+]
 
-[tool.poetry.scripts]
-feedforbot = 'feedforbot.cli:main'
+[project.scripts]
+feedforbot = "feedforbot.cli:main"
 
-[tool.poetry.dependencies]
-python = ">=3.10"
-aiocron = "^1.8"
-aiofiles = ">=23.2"
-beautifulsoup4 = "^4.12"
-click = "^8.1"
-feedparser = "^6.0"
-httpx = ">=0.26"
-jinja2 = "^3.1"
-orjson = "^3.9"
-pydantic = ">=2.0,<3.0"
-pyyaml = "^6.0"
-sentry-sdk = ">=2.0,<3.0"
+[project.urls]
+Homepage = "https://github.com/shpaker/feedforbot"
+Repository = "https://github.com/shpaker/feedforbot"
 
-[tool.poetry.group.dev.dependencies]
-pre-commit = ">=3.5.0"
-
-[tool.poetry.group.linters.dependencies]
-bandit = ">=1.7"
-black = ">=24.2"
-isort = {extras = ["colors"], version = "^5.13"}
-mypy = ">=1.8,<2.0"
-ruff = "^0.4"
-safety = "^2.0"
-types-aiofiles = "^23.2.0"
-types-beautifulsoup4 = "^4.12.0.7"
-types-pyyaml = "^6.0.12"
-
-[tool.poetry.group.tests.dependencies]
-freezegun = ">=1.2.2"
-pytest = ">=7.4.3"
-pytest-asyncio = ">=0.21.1"
-respx = ">=0.20.2"
+[dependency-groups]
+dev = [
+  "freezegun>=1.5",
+  "mypy>=1.15,<2",
+  "pytest>=8.3",
+  "pytest-asyncio>=0.25",
+  "respx>=0.22",
+  "ruff>=0.11",
+  "types-aiofiles>=24.1",
+  "types-beautifulsoup4>=4.12",
+  "types-pyyaml>=6.0",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.isort]
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
-line_length = 79
-src_paths = ["feedforbot", "tests"]
-skip = [".mypy_cache", ".pytest_cache", "venv"]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.14"
 plugins = [
-  "pydantic.mypy"
+  "pydantic.mypy",
 ]
 follow_imports = "silent"
 warn_redundant_casts = true
@@ -80,66 +66,50 @@ warn_required_dynamic_aliases = true
 module = ["feedparser.*", "aiocron"]
 ignore_missing_imports = true
 
-[tool.black]
-line-length = 79
-verbose = 1
-color = true
-exclude = '''
-(
-  /(
-      \.eggs         # exclude a few common directories in the
-    | \.git          # root of the project
-    | \.mypy_cache
-    | \.pytest_cache
-    | \.venv
-  )/
-)
-'''
-
 [tool.ruff]
-target-version = "py310"
-line-length = 120
+target-version = "py313"
+line-length = 79
 exclude = [
   ".venv",
 ]
-lint.ignore = [
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+ignore = [
   "PLR0913",  # Too many arguments to function call
-  "PTH123",   # PTH123 `open("foo")` should be replaced by `Path("foo").open()`
+  "PTH123",   # `open("foo")` should be replaced by `Path("foo").open()`
   "RUF001",   # Docstring contains ambiguous chars
   "RUF002",   # Docstring contains ambiguous chars
   "RUF003",   # Docstring contains ambiguous chars
+  "COM812",   # Trailing comma missing (conflicts with ruff format)
+  "ISC001",   # Implicit string concatenation (conflicts with ruff format)
 ]
-lint.flake8-tidy-imports.ban-relative-imports = "all"
-lint.mccabe.max-complexity = 20
-lint.select = [
+flake8-tidy-imports.ban-relative-imports = "all"
+mccabe.max-complexity = 20
+isort.force-single-line = false
+isort.lines-after-imports = 2
+isort.known-first-party = ["feedforbot"]
+select = [
    "F",  # Pyflakes
    "E",  # pycodestyle
  "C90",  # mccabe
-#   "I",  # isort
-#   "N",  # pep8-naming
-#   "D",  # pydocstyle
+   "I",  # isort
   "UP",  # pyupgrade
  "YTT",  # flake8-2020
-# "ANN",  # flake8-annotations
-#   "S",  # flake8-bandit
  "BLE",  # flake8-blind-except
-# "FBT",  # flake8-boolean-trap
    "B",  # flake8-bugbear
-#   "A",  # flake8-builtins
  "COM",  # flake8-commas
   "C4",  # flake8-comprehensions
  "DTZ",  # flake8-datetimez
  "T10",  # flake8-debugger
-#  "EM",  # flake8-errmsg
  "EXE",  # flake8-executable
  "ISC",  # flake8-implicit-str-concat
-# "ICN",  # flake8-import-conventions
    "G",  # flake8-logging-format
  "INP",  # flake8-no-pep420
-# "PIE",  # flake8-pie
  "T20",  # flake8-print
-#  "PT",  # flake8-pytest-style
-#   "Q",  # flake8-quotes
  "RET",  # flake8-return
  "SIM",  # flake8-simplify
  "TID",  # flake8-tidy-imports
@@ -147,8 +117,6 @@ lint.select = [
  "ARG",  # flake8-unused-arguments
  "PTH",  # flake8-use-pathlib
  "ERA",  # eradicate
-#  "PD",  # pandas-vet
-# "PGH",  # pygrep-hooks
   "PL",  # Pylint
  "TRY",  # tryceratops
  "RSE",  # flake8-raise

@@ -1,0 +1,189 @@
+import logging
+from http import HTTPStatus
+
+import httpx
+import pytest
+from pytest import mark, raises
+from respx import MockRouter
+
+from feedforbot.exceptions import (
+    HttpResponseError,
+    HttpTransportError,
+)
+from feedforbot.http_client import HttpClient
+
+
+_BASE_URL = "http://example.com"
+
+
+def _messages(
+    caplog: pytest.LogCaptureFixture,
+    prefix: str,
+) -> list[str]:
+    return [
+        r.getMessage()
+        for r in caplog.records
+        if r.getMessage().startswith(prefix)
+    ]
+
+
+@mark.asyncio
+async def test_get_returns_bytes(
+    respx_mock: MockRouter,
+) -> None:
+    respx_mock.get(f"{_BASE_URL}/feed").respond(
+        content=b"<rss/>",
+    )
+    client = HttpClient()
+    result = await client.get(f"{_BASE_URL}/feed")
+    assert result == b"<rss/>"
+
+
+@mark.asyncio
+async def test_get_raises_on_error_status(
+    respx_mock: MockRouter,
+) -> None:
+    respx_mock.get(f"{_BASE_URL}/feed").respond(
+        status_code=404,
+    )
+    client = HttpClient()
+    with raises(HttpResponseError):
+        await client.get(f"{_BASE_URL}/feed")
+
+
+@mark.asyncio
+async def test_post_returns_json(
+    respx_mock: MockRouter,
+) -> None:
+    respx_mock.post(f"{_BASE_URL}/api").respond(
+        json={"ok": True, "result": 42},
+    )
+    client = HttpClient()
+    result = await client.post(
+        f"{_BASE_URL}/api",
+        data={"key": "value"},
+    )
+    assert result == {"ok": True, "result": 42}
+
+
+@mark.asyncio
+async def test_post_sends_json_body(
+    respx_mock: MockRouter,
+) -> None:
+    route = respx_mock.post(f"{_BASE_URL}/api").respond(
+        json={"ok": True},
+    )
+    client = HttpClient()
+    await client.post(
+        f"{_BASE_URL}/api",
+        data={"chat_id": "123", "text": "hello"},
+    )
+    request = route.calls[0].request
+    assert request.headers["content-type"] == "application/json"
+
+
+@mark.asyncio
+async def test_post_raises_on_error_status(
+    respx_mock: MockRouter,
+) -> None:
+    respx_mock.post(f"{_BASE_URL}/api").respond(
+        status_code=500,
+    )
+    client = HttpClient()
+    with raises(HttpResponseError):
+        await client.post(
+            f"{_BASE_URL}/api",
+            data={"key": "value"},
+        )
+
+
+@mark.asyncio
+async def test_logs_request_and_response(
+    respx_mock: MockRouter,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    respx_mock.get(f"{_BASE_URL}/data").respond(
+        status_code=200,
+        content=b"ok",
+    )
+    client = HttpClient()
+    with caplog.at_level(logging.DEBUG, logger="feedforbot"):
+        await client.get(f"{_BASE_URL}/data")
+
+    requests = _messages(caplog, "http_request:")
+    assert len(requests) == 1
+    assert "GET" in requests[0]
+    assert f"{_BASE_URL}/data" in requests[0]
+
+    responses = _messages(caplog, "http_response:")
+    assert len(responses) == 1
+    assert str(HTTPStatus.OK.value) in responses[0]
+
+    details = _messages(caplog, "http_request_detail:")
+    assert len(details) == 1
+    assert "headers=" in details[0]
+
+
+@mark.asyncio
+async def test_logs_error_on_network_failure(
+    respx_mock: MockRouter,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    respx_mock.get(f"{_BASE_URL}/fail").mock(
+        side_effect=httpx.ConnectError("connection refused"),
+    )
+    client = HttpClient()
+    with (
+        caplog.at_level(logging.INFO, logger="feedforbot"),
+        raises(HttpTransportError),
+    ):
+        await client.get(f"{_BASE_URL}/fail")
+
+    errors = _messages(caplog, "http_error:")
+    assert len(errors) == 1
+    assert "GET" in errors[0]
+    assert "duration_ms=" in errors[0]
+
+
+@mark.asyncio
+async def test_masks_sensitive_values_in_logs(
+    respx_mock: MockRouter,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    token = "secret-bot-token-123"
+    url = f"{_BASE_URL}/bot{token}/sendMessage"
+    respx_mock.post(url).respond(json={"ok": True})
+
+    client = HttpClient(sensitive_values=(token,))
+    with caplog.at_level(logging.DEBUG, logger="feedforbot"):
+        await client.post(url, data={"chat_id": "1"})
+
+    for record in caplog.records:
+        if record.name == "feedforbot":
+            assert token not in record.getMessage()
+
+    requests = _messages(caplog, "http_request:")
+    assert "***" in requests[0]
+
+
+@mark.asyncio
+async def test_masks_sensitive_values_on_error(
+    respx_mock: MockRouter,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    token = "secret-bot-token-456"
+    url = f"{_BASE_URL}/bot{token}/sendMessage"
+    respx_mock.post(url).mock(
+        side_effect=httpx.ConnectError("refused"),
+    )
+
+    client = HttpClient(sensitive_values=(token,))
+    with (
+        caplog.at_level(logging.INFO, logger="feedforbot"),
+        raises(HttpTransportError),
+    ):
+        await client.post(url, data={"chat_id": "1"})
+
+    for record in caplog.records:
+        if record.name == "feedforbot":
+            assert token not in record.getMessage()

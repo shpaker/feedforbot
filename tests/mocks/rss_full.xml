@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com/</link>
+    <description>Full test feed</description>
+    <item>
+      <title><![CDATA[Article One]]></title>
+      <guid isPermaLink="true">https://example.com/1</guid>
+      <link>https://example.com/1</link>
+      <description><![CDATA[<p>Hello <img src="https://example.com/img1.png"/> world <img src="https://example.com/img2.png"/></p>]]></description>
+      <pubDate>Mon, 10 Apr 2023 08:00:00 GMT</pubDate>
+      <dc:creator>Alice</dc:creator>
+      <author>
+        <name>Alice</name>
+      </author>
+      <category>tech</category>
+      <category>python</category>
+    </item>
+    <item>
+      <title><![CDATA[Article Two]]></title>
+      <link>https://example.com/2</link>
+      <description><![CDATA[Simple text]]></description>
+      <updated>Tue, 11 Apr 2023 10:30:00 GMT</updated>
+    </item>
+    <item>
+      <title><![CDATA[Article Three]]></title>
+      <guid>urn:uuid:article-3</guid>
+      <link>https://example.com/3</link>
+      <description><![CDATA[No date article]]></description>
+    </item>
+  </channel>
+</rss>

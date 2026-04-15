@@ -1,38 +1,28 @@
-from abc import ABC, abstractmethod
 import sentry_sdk
-from httpx import HTTPError, RequestError
 from jinja2 import Template
 
-from feedforbot.constants import APP_NAME, DEFAULT_MESSAGE_TEMPLATE
-from feedforbot.core.article import ArticleModel
-from feedforbot.core.utils import make_post_request
-from feedforbot.exceptions import TransportSendError
+from feedforbot.__version__ import APP_NAME
+from feedforbot.article import ArticleModel
+from feedforbot.exceptions import (
+    HttpClientError,
+    TransportSendError,
+)
+from feedforbot.http_client import HttpClient
+from feedforbot.types import HttpClientProtocol, TransportProtocol
 
 
-class TransportBase(
-    ABC,
-):
-    def __repr__(self) -> str:
-        return f"<{APP_NAME}.{self.__class__.__name__}>"
-
-    @abstractmethod
-    async def send(
-        self,
-        *articles: ArticleModel,
-    ) -> list[ArticleModel]:
-        raise NotImplementedError
+_DEFAULT_MESSAGE_TEMPLATE = Template("{{ TITLE }}\n\n{{ TEXT }}\n\n{{ URL }}")
 
 
-class TelegramBotTransport(
-    TransportBase,
-):
+class TelegramBotTransport(TransportProtocol):
     def __init__(
         self,
         token: str,
         to: str,
-        template: Template = DEFAULT_MESSAGE_TEMPLATE,
+        template: Template = _DEFAULT_MESSAGE_TEMPLATE,
         disable_notification: bool = False,
         disable_web_page_preview: bool = False,
+        http_client: HttpClientProtocol | None = None,
     ) -> None:
         if isinstance(template, str):
             template = Template(template)
@@ -41,6 +31,9 @@ class TelegramBotTransport(
         self._message_template = template
         self._disable_web_page_preview = disable_web_page_preview
         self._disable_notification = disable_notification
+        self._http = http_client or HttpClient(
+            sensitive_values=(token,),
+        )
 
     def __repr__(self) -> str:
         return f"<{APP_NAME}.{self.__class__.__name__}: {self._to}>"
@@ -50,7 +43,7 @@ class TelegramBotTransport(
         article: ArticleModel,
     ) -> bool:
         try:
-            response = await make_post_request(
+            response = await self._http.post(
                 self._api_url,
                 data={
                     "chat_id": self._to,
@@ -60,11 +53,13 @@ class TelegramBotTransport(
                         ),
                     ),
                     "parse_mode": "HTML",
-                    "disable_notification": self._disable_notification,
-                    "disable_web_page_preview": self._disable_web_page_preview,
+                    "disable_notification": (self._disable_notification),
+                    "disable_web_page_preview": (
+                        self._disable_web_page_preview
+                    ),
                 },
             )
-        except (HTTPError, RequestError) as exc:
+        except HttpClientError as exc:
             raise TransportSendError from exc
         is_ok: bool = response["ok"]
         return is_ok
@@ -79,8 +74,8 @@ class TelegramBotTransport(
                 is_success = await self._send_article(article)
             except TransportSendError as exc:
                 with sentry_sdk.new_scope() as scope:
-                    scope.set_tag('transport', self.__repr__())
-                    scope.set_extra('article', article.model_dump())
+                    scope.set_tag("transport", self.__repr__())
+                    scope.set_extra("article", article.model_dump())
                     sentry_sdk.capture_exception(exc)
                 failed.append(article)
                 continue

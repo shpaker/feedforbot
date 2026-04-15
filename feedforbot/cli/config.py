@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +17,7 @@ from feedforbot import (
 )
 
 
-class _CacheTypes(str, Enum):
+class _CacheTypes(StrEnum):
     IN_MEMORY = "in_memory"
     FILES = "files"
 
@@ -27,7 +27,7 @@ class _CacheConfigMapping(Enum):
     FILES = FilesCache
 
 
-class _ListenerTypes(str, Enum):
+class _ListenerTypes(StrEnum):
     RSS = "rss"
 
 
@@ -35,7 +35,7 @@ class _ListenerConfigMapping(Enum):
     RSS = RSSListener
 
 
-class _TransportTypes(str, Enum):
+class _TransportTypes(StrEnum):
     TELEGRAM_BOT = "telegram_bot"
 
 

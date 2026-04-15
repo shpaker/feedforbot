@@ -3,47 +3,27 @@ repos:
     repo: local
     hooks:
 
-      - id: black
-        name: black
-        entry: python -m black
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
         language: system
-        files: ^(src|tests)/.+\.py$
+        files: ^(feedforbot|tests)/.+\.py$
 
-      - id: isort
-        name: isort
-        entry: python -m isort
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
         language: system
-        files: ^(src|tests)/.+\.py$
-
-      - id: ruff
-        name: ruff
-        entry: python -m ruff check --fix
-        language: system
-        files: ^(src|tests)/.+\.py$
+        files: ^(feedforbot|tests)/.+\.py$
 
       - id: mypy
         name: mypy
-        entry: python -m mypy
+        entry: uv run mypy
         language: system
-        files: ^(src|test)/.+\.py$
+        files: ^(feedforbot|tests)/.+\.py$
         args: [--show-error-codes]
 
-      - id: bandit
-        name: bandit
-        entry: just bandir
-        language: system
-        pass_filenames: false
-        files: ^(src)/.+\.py$
-
-      - id: safety
-        name: safety
-        entry: just safety
-        language: system
-        pass_filenames: false
-        files: ^(poetry.lock)$
-
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: "v4.5.0"
+    rev: "v5.0.0"
     hooks:
       - id: check-added-large-files
       - id: check-json
@@ -51,7 +31,6 @@ repos:
       - id: check-yaml
       - id: detect-private-key
       - id: end-of-file-fixer
-      - id: requirements-txt-fixer
       - id: forbid-new-submodules
       - id: trailing-whitespace
         exclude: ^.+(\.md)$
