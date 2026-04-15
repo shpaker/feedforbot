@@ -23,11 +23,11 @@ class RSSListener(ListenerProtocol):
     def __init__(
         self,
         url: str,
-        http_client: HttpClientProtocol = HttpClient(),  # noqa: B008
+        http_client: HttpClientProtocol | None = None,
     ) -> None:
         self.url = url
         self.source_id = url
-        self._http = http_client
+        self._http = http_client or HttpClient()
 
     def __repr__(self) -> str:
         return f"<{__title__}.{self.__class__.__name__}: {self.url}>"
@@ -49,7 +49,9 @@ class RSSListener(ListenerProtocol):
             title=entry.title,
             url=entry.get("link") or _id,
             text=soup.text.strip(),
-            images=tuple(img["src"] for img in soup.find_all("img")),
+            images=tuple(
+                img["src"] for img in soup.find_all("img") if img.get("src")
+            ),
             authors=tuple(
                 a["name"] for a in entry.get("authors", ()) if "name" in a
             ),

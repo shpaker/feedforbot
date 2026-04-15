@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -40,8 +39,10 @@ class ArticleModel(
 
     def __eq__(
         self,
-        other: Any,
-    ) -> Any:
+        other: object,
+    ) -> bool:
+        if not isinstance(other, ArticleModel):
+            return NotImplemented
         return self.id == other.id
 
     def __hash__(self) -> int:

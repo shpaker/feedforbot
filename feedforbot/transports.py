@@ -48,7 +48,7 @@ class TelegramBotTransport(TransportProtocol):
     def _send_article(
         self,
         article: ArticleModel,
-    ) -> bool:
+    ) -> None:
         logger.debug(
             "transport_send_article: chat_id=%s article_id=%s",
             self._to,
@@ -73,8 +73,8 @@ class TelegramBotTransport(TransportProtocol):
             )
         except HttpClientError as exc:
             raise TransportSendError from exc
-        is_ok: bool = response["ok"]
-        return is_ok
+        if not response.get("ok", False):
+            raise TransportSendError
 
     def send(
         self,
@@ -83,7 +83,7 @@ class TelegramBotTransport(TransportProtocol):
         failed = []
         for article in articles:
             try:
-                is_success = self._send_article(article)
+                self._send_article(article)
             except TransportSendError as exc:
                 logger.warning(
                     "transport_send_error: chat_id=%s article_id=%s",
@@ -100,9 +100,6 @@ class TelegramBotTransport(TransportProtocol):
                         article.id,
                     )
                     capture_exception(exc)
-                failed.append(article)
-                continue
-            if not is_success:
                 failed.append(article)
         logger.info(
             "transport_send: chat_id=%s total=%d failed=%d",
