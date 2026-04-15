@@ -1,4 +1,16 @@
+import sys
 from enum import Enum
+
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    from enum import Enum as _StrBase
+
+    class StrEnum(str, _StrBase):
+        pass
+
+
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +29,7 @@ from feedforbot import (
 )
 
 
-class _CacheTypes(str, Enum):
+class _CacheTypes(StrEnum):
     IN_MEMORY = "in_memory"
     FILES = "files"
 
@@ -27,7 +39,7 @@ class _CacheConfigMapping(Enum):
     FILES = FilesCache
 
 
-class _ListenerTypes(str, Enum):
+class _ListenerTypes(StrEnum):
     RSS = "rss"
 
 
@@ -35,7 +47,7 @@ class _ListenerConfigMapping(Enum):
     RSS = RSSListener
 
 
-class _TransportTypes(str, Enum):
+class _TransportTypes(StrEnum):
     TELEGRAM_BOT = "telegram_bot"
 
 
@@ -105,7 +117,12 @@ def _make_scheduler_from_config(
         listener=listener,
         transport=transport,
         cache=cache_cls(
-            id=f"{transport}-{listener}",
+            id=(
+                f"{config.listener.type.value}"
+                f":{config.listener.params.get('url', '')}"
+                f"|{config.transport.type.value}"
+                f":{config.transport.params.get('to', '')}"
+            ),
         ),
     )
 

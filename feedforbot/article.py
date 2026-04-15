@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -10,8 +9,6 @@ from pydantic import (
     field_validator,
 )
 from pydantic_core.core_schema import SerializationInfo
-
-from feedforbot.core.utils import now
 
 
 def _to_upper(
@@ -30,7 +27,9 @@ class ArticleModel(
 
     id: str
     published_at: datetime | None = None
-    grabbed_at: datetime = Field(default_factory=now)
+    grabbed_at: datetime = Field(
+        default_factory=lambda: datetime.now(tz=timezone.utc),
+    )
     title: str
     url: HttpUrl
     text: str
@@ -40,9 +39,14 @@ class ArticleModel(
 
     def __eq__(
         self,
-        other: Any,
-    ) -> Any:
+        other: object,
+    ) -> bool:
+        if not isinstance(other, ArticleModel):
+            return NotImplemented
         return self.id == other.id
+
+    def __hash__(self) -> int:
+        return hash(self.id)
 
     @field_serializer("url")
     def serialize_url(

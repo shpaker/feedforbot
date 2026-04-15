@@ -1,13 +1,19 @@
+import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from pytest import fixture
+
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 _MOCK_DIR = Path(__file__).parent / "mocks"
 _DEFAULT_EXTENSION = ".xml"
 
 
 @fixture(name="read_mock")
-def _read_mock():
+def _read_mock() -> Callable[..., str]:
     def _func(
         name: str,
         strip: bool = True,
@@ -15,7 +21,7 @@ def _read_mock():
         if not name.lower().endswith(_DEFAULT_EXTENSION):
             name = name + _DEFAULT_EXTENSION
         filepath = _MOCK_DIR / name
-        with open(filepath, "r", encoding="utf-8") as fh:
+        with open(filepath, encoding="utf-8") as fh:
             data = fh.read()
         if strip:
             data = data.strip()

@@ -1,3 +1,9 @@
+.claude/
+
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
 .idea/
 .env
 .DS_Store
@@ -5,6 +11,8 @@
 *.yml
 *.yaml
 *.json
+!.github/**
+!tmfeed/**
 redis_data/
 
 # Byte-compiled / optimized / DLL files

@@ -1,26 +1,24 @@
-from feedforbot.core.cache import CacheBase, FilesCache, InMemoryCache
-from feedforbot.core.listeners import ListenerBase, RSSListener
-from feedforbot.core.scheduler import Scheduler
-from feedforbot.core.transports import TelegramBotTransport, TransportBase
-from feedforbot.core.types import (
+from feedforbot.__version__ import __title__, __version__
+from feedforbot.cache import FilesCache, InMemoryCache
+from feedforbot.listeners import RSSListener
+from feedforbot.scheduler import Scheduler
+from feedforbot.transports import TelegramBotTransport
+from feedforbot.types import (
     CacheProtocol,
     ListenerProtocol,
     TransportProtocol,
 )
-from feedforbot.version import VERSION
 
-__version__ = VERSION
+
 __all__ = (
-    "Scheduler",
-    "InMemoryCache",
-    "FilesCache",
-    "RSSListener",
-    "TelegramBotTransport",
     "CacheProtocol",
+    "FilesCache",
+    "InMemoryCache",
     "ListenerProtocol",
+    "RSSListener",
+    "Scheduler",
+    "TelegramBotTransport",
     "TransportProtocol",
-    "CacheBase",
-    "ListenerBase",
-    "TransportBase",
-    "VERSION",
+    "__title__",
+    "__version__",
 )

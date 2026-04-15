@@ -1,3 +1,4 @@
-import logging
+from logging import getLogger
 
-logger = logging.getLogger("feedforbot")
+
+logger = getLogger("feedforbot")
