@@ -1,7 +1,5 @@
 from typing import Any
 
-from jinja2 import Template
-
 from feedforbot.article import ArticleModel
 from feedforbot.exceptions import HttpClientError
 from feedforbot.transports import TelegramBotTransport
@@ -84,11 +82,10 @@ def test_send_multiple_articles() -> None:
 
 def test_send_custom_template() -> None:
     http = FakeHttpClient()
-    template = Template("Link: {{ URL }}")
     transport = TelegramBotTransport(
         token=_TOKEN,
         to=_CHAT_ID,
-        template=template,
+        template="Link: {{ URL }}",
         http_client=http,
     )
     failed = transport.send(_article())
@@ -103,7 +100,7 @@ def test_send_string_template() -> None:
     transport = TelegramBotTransport(
         token=_TOKEN,
         to=_CHAT_ID,
-        template="<b>{{ TITLE }}</b>",  # type: ignore[arg-type]
+        template="<b>{{ TITLE }}</b>",
         http_client=http,
     )
     failed = transport.send(_article())

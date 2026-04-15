@@ -11,6 +11,7 @@ from feedforbot.exceptions import (
     ListenerReceiveError,
 )
 from feedforbot.http_client import HttpClient
+from feedforbot.logger import logger
 from feedforbot.types import HttpClientProtocol, ListenerProtocol
 
 
@@ -65,4 +66,15 @@ class RSSListener(ListenerProtocol):
         except HttpClientError as exc:
             raise ListenerReceiveError from exc
         parsed = parse(response)
-        return tuple(self._parse_entry(entry) for entry in parsed.entries)
+        articles = tuple(self._parse_entry(entry) for entry in parsed.entries)
+        logger.info(
+            "listener_receive: %s entries=%d",
+            self,
+            len(articles),
+        )
+        logger.debug(
+            "listener_receive_ids: %s ids=%s",
+            self,
+            [a.id for a in articles],
+        )
+        return articles

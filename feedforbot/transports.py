@@ -1,4 +1,4 @@
-from jinja2 import Template
+from jinja2.sandbox import SandboxedEnvironment
 
 from feedforbot.__version__ import __title__
 from feedforbot.article import ArticleModel
@@ -7,11 +7,16 @@ from feedforbot.exceptions import (
     TransportSendError,
 )
 from feedforbot.http_client import HttpClient
+from feedforbot.logger import logger
 from feedforbot.sentry import capture_exception, new_scope
 from feedforbot.types import HttpClientProtocol, TransportProtocol
 
 
-_DEFAULT_MESSAGE_TEMPLATE = Template("{{ TITLE }}\n\n{{ TEXT }}\n\n{{ URL }}")
+_SANDBOX = SandboxedEnvironment()
+_DEFAULT_TEMPLATE_STR = "{{ TITLE }}\n\n{{ TEXT }}\n\n{{ URL }}"
+_DEFAULT_MESSAGE_TEMPLATE = _SANDBOX.from_string(
+    _DEFAULT_TEMPLATE_STR,
+)
 
 
 class TelegramBotTransport(TransportProtocol):
@@ -19,16 +24,18 @@ class TelegramBotTransport(TransportProtocol):
         self,
         token: str,
         to: str,
-        template: Template = _DEFAULT_MESSAGE_TEMPLATE,
+        template: str | None = None,
         disable_notification: bool = False,
         disable_web_page_preview: bool = False,
         http_client: HttpClientProtocol | None = None,
     ) -> None:
-        if isinstance(template, str):
-            template = Template(template)
         self._to = to
         self._api_url = f"https://api.telegram.org/bot{token}/sendMessage"
-        self._message_template = template
+        self._message_template = (
+            _SANDBOX.from_string(template)
+            if template is not None
+            else _DEFAULT_MESSAGE_TEMPLATE
+        )
         self._disable_web_page_preview = disable_web_page_preview
         self._disable_notification = disable_notification
         self._http = http_client or HttpClient(
@@ -42,6 +49,11 @@ class TelegramBotTransport(TransportProtocol):
         self,
         article: ArticleModel,
     ) -> bool:
+        logger.debug(
+            "transport_send_article: chat_id=%s article_id=%s",
+            self._to,
+            article.id,
+        )
         try:
             response = self._http.post(
                 self._api_url,
@@ -73,12 +85,29 @@ class TelegramBotTransport(TransportProtocol):
             try:
                 is_success = self._send_article(article)
             except TransportSendError as exc:
+                logger.warning(
+                    "transport_send_error: chat_id=%s article_id=%s",
+                    self._to,
+                    article.id,
+                )
                 with new_scope() as scope:
-                    scope.set_tag("transport", self.__repr__())
-                    scope.set_extra("article", article.model_dump())
+                    scope.set_tag(
+                        "transport",
+                        repr(self),
+                    )
+                    scope.set_extra(
+                        "article_id",
+                        article.id,
+                    )
                     capture_exception(exc)
                 failed.append(article)
                 continue
             if not is_success:
                 failed.append(article)
+        logger.info(
+            "transport_send: chat_id=%s total=%d failed=%d",
+            self._to,
+            len(articles),
+            len(failed),
+        )
         return failed

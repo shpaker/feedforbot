@@ -4,14 +4,15 @@ version = "0.1.0"
 description = "Forward links from RSS/Atom feeds to messengers"
 authors = [{ name = "Aleksandr Shpak", email = "shpaker@gmail.com" }]
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.10"
 dependencies = [
   "croniter>=6.0",
   "beautifulsoup4>=4.13,<5",
   "feedparser>=6.0,<7",
   "httpx>=0.28",
   "jinja2>=3.1,<4",
-  "pydantic>=2.11,<3",
+  "pydantic>=2.0,<3",
+  "epyxid>=0.3",
 ]
 
 [project.optional-dependencies]
@@ -36,6 +37,7 @@ dev = [
   "mypy>=1.15,<2",
   "pytest>=8.3",
   "pytest-asyncio>=0.25",
+  "pytest-cov>=6.0",
   "respx>=0.22",
   "ruff>=0.11",
   "types-beautifulsoup4>=4.12",
@@ -48,7 +50,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.10"
 plugins = [
   "pydantic.mypy",
 ]
@@ -65,12 +67,15 @@ init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
 
+[tool.pytest.ini_options]
+addopts = "--cov=feedforbot --cov-report=term-missing"
+
 [[tool.mypy.overrides]]
 module = ["feedparser.*"]
 ignore_missing_imports = true
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py310"
 line-length = 79
 exclude = [
   ".venv",

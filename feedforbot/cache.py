@@ -5,6 +5,7 @@ from pathlib import Path
 
 from feedforbot.__version__ import __title__
 from feedforbot.article import ArticleModel
+from feedforbot.logger import logger
 from feedforbot.types import CacheProtocol
 
 
@@ -16,20 +17,26 @@ class InMemoryCache(CacheProtocol):
         self,
         id: str,  # noqa: ARG002
     ) -> None:
-        self._cache: Iterable[ArticleModel] | None = None
+        self._cache: tuple[ArticleModel, ...] = ()
+        self._populated: bool = False
 
     def __repr__(self) -> str:
         return f"<{__title__}.{self.__class__.__name__}>"
+
+    @property
+    def is_populated(self) -> bool:
+        return self._populated
 
     def write(
         self,
         *articles: ArticleModel,
     ) -> None:
         self._cache = articles
+        self._populated = True
 
     def read(
         self,
-    ) -> Iterable[ArticleModel] | None:
+    ) -> Iterable[ArticleModel]:
         return self._cache
 
 
@@ -47,6 +54,10 @@ class FilesCache(CacheProtocol):
     def __repr__(self) -> str:
         return f"<{__title__}.{self.__class__.__name__}: {self.cache_path}>"
 
+    @property
+    def is_populated(self) -> bool:
+        return self.cache_path.exists()
+
     def write(
         self,
         *articles: ArticleModel,
@@ -58,24 +69,44 @@ class FilesCache(CacheProtocol):
         ) as fh:
             fh.write(
                 json.dumps(
-                    [article.model_dump() for article in articles],
+                    [article.model_dump(mode="json") for article in articles],
                     indent=2,
                     sort_keys=True,
                 ),
             )
+        logger.debug(
+            "cache_write: path=%s articles=%d",
+            self.cache_path,
+            len(articles),
+        )
 
     def read(
         self,
-    ) -> Iterable[ArticleModel] | None:
-        if not self.cache_path.exists():
-            return None
-        with open(self.cache_path) as fh:
-            contents = fh.read()
+    ) -> Iterable[ArticleModel]:
+        try:
+            with open(self.cache_path) as fh:
+                contents = fh.read()
+        except FileNotFoundError:
+            logger.debug(
+                "cache_read: path=%s found=false",
+                self.cache_path,
+            )
+            return ()
         if not contents:
-            return None
-        return tuple(ArticleModel(**data) for data in json.loads(contents))
+            logger.debug(
+                "cache_read: path=%s empty=true",
+                self.cache_path,
+            )
+            return ()
+        articles = tuple(ArticleModel(**data) for data in json.loads(contents))
+        logger.debug(
+            "cache_read: path=%s found=true articles=%d",
+            self.cache_path,
+            len(articles),
+        )
+        return articles
 
     def _ensure_data_dir(
         self,
     ) -> None:
-        self.data_dir.mkdir(exist_ok=True)
+        self.data_dir.mkdir(parents=True, exist_ok=True)

@@ -59,14 +59,24 @@ class FakeCache:
         self,
         cached: Iterable[ArticleModel] | None = None,
     ) -> None:
-        self._cached = cached
+        if cached is None:
+            self._cached: tuple[ArticleModel, ...] = ()
+            self._populated = False
+        else:
+            self._cached = tuple(cached)
+            self._populated = True
         self.written: list[tuple[ArticleModel, ...]] = []
 
-    def read(self) -> Iterable[ArticleModel] | None:
+    @property
+    def is_populated(self) -> bool:
+        return self._populated
+
+    def read(self) -> Iterable[ArticleModel]:
         return self._cached
 
     def write(self, *articles: ArticleModel) -> None:
         self._cached = articles
+        self._populated = True
         self.written.append(articles)
 
 
@@ -168,10 +178,13 @@ def test_partial_send_failure_excludes_failed_from_cache() -> None:
     scheduler._tick()  # noqa: SLF001
 
     assert transport.sent == [a1, a2]
-    assert cache.written[0] == (old, a1)
+    written_ids = {a.id for a in cache.written[0]}
+    assert "old" in written_ids
+    assert "a1" in written_ids
+    assert "a2" not in written_ids
 
 
-def test_all_send_failed_caches_only_old() -> None:
+def test_all_send_failed_keeps_old_in_cache() -> None:
     old = _article(id="old")
     new1 = _article(id="n1")
     new2 = _article(id="n2")
@@ -186,7 +199,34 @@ def test_all_send_failed_caches_only_old() -> None:
     scheduler._tick()  # noqa: SLF001
 
     assert set(transport.sent) == {new1, new2}
-    assert cache.written[0] == (old,)
+    written_ids = {a.id for a in cache.written[0]}
+    assert "old" in written_ids
+    assert "n1" not in written_ids
+    assert "n2" not in written_ids
+
+
+def test_reappearing_article_not_resent() -> None:
+    a1 = _article(id="1")
+    a2 = _article(id="2")
+    transport = FakeTransport()
+    cache = FakeCache(cached=[a1, a2])
+
+    scheduler = _make_scheduler(
+        listener=FakeListener(articles=(a1,)),
+        transport=transport,
+        cache=cache,
+    )
+    scheduler._tick()  # noqa: SLF001
+    assert transport.sent == []
+
+    scheduler2 = Scheduler(
+        "* * * * *",
+        listener=FakeListener(articles=(a1, a2)),
+        transport=transport,
+        cache=cache,
+    )
+    scheduler2._tick()  # noqa: SLF001
+    assert transport.sent == []
 
 
 def test_default_cache_is_in_memory() -> None:

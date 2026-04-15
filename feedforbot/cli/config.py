@@ -1,4 +1,16 @@
-from enum import Enum, StrEnum
+import sys
+from enum import Enum
+
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    from enum import Enum as _StrBase
+
+    class StrEnum(str, _StrBase):
+        pass
+
+
 from pathlib import Path
 from typing import Any
 
@@ -105,7 +117,12 @@ def _make_scheduler_from_config(
         listener=listener,
         transport=transport,
         cache=cache_cls(
-            id=f"{transport}-{listener}",
+            id=(
+                f"{config.listener.type.value}"
+                f":{config.listener.params.get('url', '')}"
+                f"|{config.transport.type.value}"
+                f":{config.transport.params.get('to', '')}"
+            ),
         ),
     )
 

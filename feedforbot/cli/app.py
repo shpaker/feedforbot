@@ -89,6 +89,11 @@ def main(
     log_level = _VERBOSITY_LEVELS[verbose]
     configure_logging(log_level=log_level)
     schedulers = read_config(configuration)
+    logger.info(
+        "config_loaded: path=%s schedulers=%d",
+        configuration,
+        len(schedulers),
+    )
 
     async def _run_forever() -> None:
         loop = asyncio.get_running_loop()

@@ -59,6 +59,12 @@ To add a new listener or transport:
 - **`respx`** is allowed **only** in `tests/test_http_client.py` (tests for `HttpClient` itself). All other tests must use dependency inversion — inject fakes/stubs implementing the corresponding protocols instead of mocking HTTP at the transport level.
 - **`HttpClient`** and **`HttpClientProtocol`** are internal implementation details and must **not** be re-exported from `feedforbot/__init__.py`.
 
+## Changelog rules
+
+- `CHANGELOG.md` records only **full releases** (no entries for `rc`/`alpha`/`beta` tags). Pre-release changes are folded into the next full version entry.
+- Format: [Keep a Changelog](https://keepachangelog.com/), sections: Added / Changed / Fixed / Removed.
+- **Before every push**, verify that `CHANGELOG.md` is up to date: if the branch introduces user-visible changes (features, fixes, breaking changes), they must be listed under the `[Unreleased]` / next-version heading before pushing.
+
 ## Formatting rules
 
 - `ruff format` line length: **79**

@@ -17,7 +17,10 @@ mypy:
   uv run mypy --pretty -p {{ SOURCE_DIR }}
 
 pytest:
-  uv run pytest -vv
+  uv run pytest -vv --cov=feedforbot --cov-report=term-missing
+
+schema:
+  uv run python -c "from feedforbot.cli.config import _ConfigModel; import json; s = _ConfigModel.model_json_schema(); s['title'] = 'FeedForBot Configuration'; print(json.dumps(s, indent=2))" > config.schema.json
 
 help:
   uv run python -m {{ SOURCE_DIR }} --help

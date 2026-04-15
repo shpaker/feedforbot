@@ -27,13 +27,19 @@ def _messages(
     ]
 
 
+def _no_retry_client(
+    **kwargs: object,
+) -> HttpClient:
+    return HttpClient(max_retries=1, **kwargs)  # type: ignore[arg-type]
+
+
 def test_get_returns_bytes(
     respx_mock: MockRouter,
 ) -> None:
     respx_mock.get(f"{_BASE_URL}/feed").respond(
         content=b"<rss/>",
     )
-    client = HttpClient()
+    client = _no_retry_client()
     result = client.get(f"{_BASE_URL}/feed")
     assert result == b"<rss/>"
 
@@ -44,7 +50,7 @@ def test_get_raises_on_error_status(
     respx_mock.get(f"{_BASE_URL}/feed").respond(
         status_code=404,
     )
-    client = HttpClient()
+    client = _no_retry_client()
     with raises(HttpResponseError):
         client.get(f"{_BASE_URL}/feed")
 
@@ -55,7 +61,7 @@ def test_post_returns_json(
     respx_mock.post(f"{_BASE_URL}/api").respond(
         json={"ok": True, "result": 42},
     )
-    client = HttpClient()
+    client = _no_retry_client()
     result = client.post(
         f"{_BASE_URL}/api",
         data={"key": "value"},
@@ -69,7 +75,7 @@ def test_post_sends_json_body(
     route = respx_mock.post(f"{_BASE_URL}/api").respond(
         json={"ok": True},
     )
-    client = HttpClient()
+    client = _no_retry_client()
     client.post(
         f"{_BASE_URL}/api",
         data={"chat_id": "123", "text": "hello"},
@@ -84,7 +90,7 @@ def test_post_raises_on_error_status(
     respx_mock.post(f"{_BASE_URL}/api").respond(
         status_code=500,
     )
-    client = HttpClient()
+    client = _no_retry_client()
     with raises(HttpResponseError):
         client.post(
             f"{_BASE_URL}/api",
@@ -100,7 +106,7 @@ def test_logs_request_and_response(
         status_code=200,
         content=b"ok",
     )
-    client = HttpClient()
+    client = _no_retry_client()
     with caplog.at_level(logging.DEBUG, logger="feedforbot"):
         client.get(f"{_BASE_URL}/data")
 
@@ -125,7 +131,7 @@ def test_logs_error_on_network_failure(
     respx_mock.get(f"{_BASE_URL}/fail").mock(
         side_effect=httpx.ConnectError("connection refused"),
     )
-    client = HttpClient()
+    client = _no_retry_client()
     with (
         caplog.at_level(logging.INFO, logger="feedforbot"),
         raises(HttpTransportError),
@@ -146,7 +152,7 @@ def test_masks_sensitive_values_in_logs(
     url = f"{_BASE_URL}/bot{token}/sendMessage"
     respx_mock.post(url).respond(json={"ok": True})
 
-    client = HttpClient(sensitive_values=(token,))
+    client = _no_retry_client(sensitive_values=(token,))
     with caplog.at_level(logging.DEBUG, logger="feedforbot"):
         client.post(url, data={"chat_id": "1"})
 
@@ -168,7 +174,7 @@ def test_masks_sensitive_values_on_error(
         side_effect=httpx.ConnectError("refused"),
     )
 
-    client = HttpClient(sensitive_values=(token,))
+    client = _no_retry_client(sensitive_values=(token,))
     with (
         caplog.at_level(logging.INFO, logger="feedforbot"),
         raises(HttpTransportError),
@@ -178,3 +184,50 @@ def test_masks_sensitive_values_on_error(
     for record in caplog.records:
         if record.name == "feedforbot":
             assert token not in record.getMessage()
+
+
+def test_retry_on_server_error(
+    respx_mock: MockRouter,
+) -> None:
+    route = respx_mock.get(f"{_BASE_URL}/flaky")
+    route.side_effect = [
+        httpx.Response(500),
+        httpx.Response(200, content=b"ok"),
+    ]
+    client = HttpClient(
+        max_retries=2,
+        backoff_base=0.01,
+    )
+    result = client.get(f"{_BASE_URL}/flaky")
+    assert result == b"ok"
+    expected_calls = 2
+    assert len(route.calls) == expected_calls
+
+
+def test_no_retry_on_client_error(
+    respx_mock: MockRouter,
+) -> None:
+    route = respx_mock.get(f"{_BASE_URL}/gone").respond(
+        status_code=404,
+    )
+    client = HttpClient(
+        max_retries=3,
+        backoff_base=0.01,
+    )
+    with raises(HttpResponseError):
+        client.get(f"{_BASE_URL}/gone")
+    assert len(route.calls) == 1
+
+
+def test_retry_exhausted_raises(
+    respx_mock: MockRouter,
+) -> None:
+    respx_mock.get(f"{_BASE_URL}/down").respond(
+        status_code=503,
+    )
+    client = HttpClient(
+        max_retries=2,
+        backoff_base=0.01,
+    )
+    with raises(HttpResponseError):
+        client.get(f"{_BASE_URL}/down")

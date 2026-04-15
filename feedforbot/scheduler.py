@@ -2,8 +2,11 @@ import asyncio
 import threading
 import time
 
+import structlog
 from croniter import croniter
+from epyxid import XID
 
+from feedforbot.article import ArticleModel
 from feedforbot.cache import InMemoryCache
 from feedforbot.exceptions import ListenerReceiveError
 from feedforbot.logger import logger
@@ -33,27 +36,49 @@ class Scheduler:
     def _tick(
         self,
     ) -> None:
+        tick_id = str(XID())
+        structlog.contextvars.bind_contextvars(tick_id=tick_id)
+        try:
+            self._tick_inner()
+        finally:
+            structlog.contextvars.unbind_contextvars("tick_id")
+
+    def _tick_inner(
+        self,
+    ) -> None:
+        logger.debug("scheduler_tick: %s", self.listener)
         try:
             articles = self.listener.receive()
         except ListenerReceiveError as exc:
             with new_scope() as scope:
                 scope.set_tag("cron", self.cron_rule)
-                scope.set_tag("listener", self.listener.__repr__())
-                scope.set_tag("transport", self.transport.__repr__())
+                scope.set_tag("listener", repr(self.listener))
+                scope.set_tag("transport", repr(self.transport))
                 capture_exception(exc)
             logger.warning(
                 "listener_receive_error: %s",
                 self.listener,
             )
             return
-        if (cached := self.cache.read()) is None:
+        if not self.cache.is_populated:
+            logger.info(
+                "scheduler_first_run: %s articles=%d",
+                self.listener,
+                len(articles),
+            )
             self.cache.write(*articles)
             return
+        cached_set = set(self.cache.read())
         to_send = tuple(
-            article for article in articles if article not in cached
+            article for article in articles if article not in cached_set
         )
         if not to_send:
-            self.cache.write(*articles)
+            logger.debug(
+                "scheduler_no_new_articles: %s",
+                self.listener,
+            )
+            merged = self._merge_articles(cached_set, articles)
+            self.cache.write(*merged)
             return
         ids = [article.id for article in to_send]
         logger.info(
@@ -69,10 +94,12 @@ class Scheduler:
                 self.listener,
                 failed_ids,
             )
-        to_cache = tuple(
-            article for article in articles if article not in failed
+        failed_set = set(failed)
+        cacheable = tuple(
+            article for article in articles if article not in failed_set
         )
-        self.cache.write(*to_cache)
+        merged = self._merge_articles(cached_set, cacheable)
+        self.cache.write(*merged)
 
     def stop(self) -> None:
         self._stop_event.set()
@@ -115,3 +142,14 @@ class Scheduler:
             if self._stop_event.is_set():
                 break
             await asyncio.to_thread(self._tick)
+
+    @staticmethod
+    def _merge_articles(
+        cached: set[ArticleModel],
+        *groups: tuple[ArticleModel, ...],
+    ) -> tuple[ArticleModel, ...]:
+        seen: dict[str, ArticleModel] = {a.id: a for a in cached}
+        for group in groups:
+            for article in group:
+                seen[article.id] = article
+        return tuple(seen.values())

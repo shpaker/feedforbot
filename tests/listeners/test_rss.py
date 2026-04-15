@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from freezegun import freeze_time
@@ -50,8 +50,24 @@ def test_receive_feed(
         feed[0].model_dump()
         == ArticleModel(
             id="https://aaa.ccc",
-            published_at=datetime(2022, 11, 23, 19, 22, 24, tzinfo=UTC),
-            grabbed_at=datetime(2012, 1, 14, 12, 0, 1, tzinfo=UTC),
+            published_at=datetime(
+                2022,
+                11,
+                23,
+                19,
+                22,
+                24,
+                tzinfo=timezone.utc,
+            ),
+            grabbed_at=datetime(
+                2012,
+                1,
+                14,
+                12,
+                0,
+                1,
+                tzinfo=timezone.utc,
+            ),
             title="FOO",
             url="https://aaa.ccc",  # type: ignore[arg-type]
             text="BAR",
@@ -88,7 +104,7 @@ def test_receive_multiple_entries(
         8,
         0,
         0,
-        tzinfo=UTC,
+        tzinfo=timezone.utc,
     )
 
     assert feed[1].title == "Article Two"
@@ -100,7 +116,7 @@ def test_receive_multiple_entries(
         10,
         30,
         0,
-        tzinfo=UTC,
+        tzinfo=timezone.utc,
     )
 
     assert feed[2].title == "Article Three"

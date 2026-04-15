@@ -23,6 +23,9 @@ class HttpClientProtocol(
 class CacheProtocol(
     Protocol,
 ):
+    @property
+    def is_populated(self) -> bool: ...
+
     def write(
         self,
         *articles: ArticleModel,
@@ -30,7 +33,7 @@ class CacheProtocol(
 
     def read(
         self,
-    ) -> Iterable[ArticleModel] | None: ...
+    ) -> Iterable[ArticleModel]: ...
 
 
 class ListenerProtocol(

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import (
@@ -29,7 +29,7 @@ class ArticleModel(
     id: str
     published_at: datetime | None = None
     grabbed_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=UTC),
+        default_factory=lambda: datetime.now(tz=timezone.utc),
     )
     title: str
     url: HttpUrl
@@ -72,5 +72,5 @@ class ArticleModel(
         if value is None:
             return None
         if value.tzinfo is None:
-            return value.replace(tzinfo=UTC)
+            return value.replace(tzinfo=timezone.utc)
         return value
