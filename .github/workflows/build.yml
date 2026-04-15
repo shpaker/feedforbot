@@ -17,7 +17,6 @@ jobs:
           echo "ver=$(echo ${GITHUB_REF#refs/*/})" >> "$GITHUB_OUTPUT"
           echo "minor_ver=$(TMP_VAR=${GITHUB_REF#refs/*/}; echo ${TMP_VAR%.*})" >> "$GITHUB_OUTPUT"
           echo "major_ver=$(TMP_VAR=${GITHUB_REF#refs/*/}; echo ${TMP_VAR%.*.*})" >> "$GITHUB_OUTPUT"
-          echo "sha=$(git rev-parse --short "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
         id: extract_name_and_version
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -39,12 +38,10 @@ jobs:
           push: true
           tags: |
             "${{ env.REGISTRY_HOST }}/${{ github.repository }}:latest"
-            "${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.sha }}"
             "${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.major_ver }}"
             "${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.minor_ver }}"
             "${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.ver }}"
             "${{ github.repository }}:latest"
-            "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.sha }}"
             "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.major_ver }}"
             "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.minor_ver }}"
             "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.ver }}"
