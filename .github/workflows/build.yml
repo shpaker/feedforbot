@@ -50,14 +50,14 @@ jobs:
             IMAGE_CREATED=${{ github.event.release.created_at }}
             IMAGE_REVISION=${{ github.sha }}
           annotations: |
-            org.opencontainers.image.title=feedforbot
-            org.opencontainers.image.description=Forward links from RSS/Atom feeds to messengers
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.url=https://github.com/${{ github.repository }}
-            org.opencontainers.image.authors=Aleksandr Shpak <shpaker@gmail.com>
-            org.opencontainers.image.version=${{ steps.extract_name_and_version.outputs.ver }}
-            org.opencontainers.image.created=${{ github.event.release.created_at }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.licenses=MIT
+            manifest:org.opencontainers.image.title=feedforbot
+            manifest:org.opencontainers.image.description=Forward links from RSS/Atom feeds to messengers
+            manifest:org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            manifest:org.opencontainers.image.url=https://github.com/${{ github.repository }}
+            manifest:org.opencontainers.image.authors=Aleksandr Shpak <shpaker@gmail.com>
+            manifest:org.opencontainers.image.version=${{ steps.extract_name_and_version.outputs.ver }}
+            manifest:org.opencontainers.image.created=${{ github.event.release.created_at }}
+            manifest:org.opencontainers.image.revision=${{ github.sha }}
+            manifest:org.opencontainers.image.licenses=MIT
           cache-from: type=registry,ref=${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.minor_ver }}
           cache-to: type=inline
