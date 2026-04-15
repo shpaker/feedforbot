@@ -10,41 +10,28 @@ in the next full version entry.
 
 ### Changed
 
-- Domain layer made synchronous; async execution moved to `Scheduler.arun()`
-- Migrated from Poetry to uv + hatchling
-- Dropped bandit; merged dev dependencies into single group
-- Python requirement set to >=3.10 with CI matrix (3.10–3.14)
-- Structured logging throughout core modules (cache, listener, scheduler, transport)
+- Migrated from Poetry to uv
+- Python >=3.10 with CI matrix (3.10–3.14)
+- Structured logging throughout core modules
 - Cache merges articles instead of overwriting — prevents re-sending articles that temporarily disappear from feeds
-- Cache protocol uses `is_populated` property instead of `None` sentinel from `read()`
-- Cache ID derived from listener/transport config values instead of `__repr__`
-- `HttpClient` reuses a persistent `httpx.Client` (TCP/TLS connection reuse)
-- `HttpClient` retries server errors (5xx) and network failures with exponential backoff (3 attempts)
-- Jinja2 templates rendered via `SandboxedEnvironment` (SSTI mitigation)
-- Sentry error reports include only `article_id`, not full article data
-- Telegram Bot API token masked via `HttpClient` sensitive values (no token in logs or tracebacks)
+- HTTP client reuses persistent connections and retries server errors with exponential backoff
+- Jinja2 templates rendered in sandbox (SSTI mitigation)
+- Telegram Bot API token no longer appears in logs or tracebacks
 
 ### Added
 
-- Full test suite: cache, config, http_client, listener, scheduler, transport (59 tests)
-- `pytest-cov` for coverage reporting
-- HTTP request timeouts (30s total, 10s connect) in `HttpClient`
-- Correlation ID (`tick_id`) per scheduler tick for log tracing
-- CLI `--healthcheck-port` option for container liveness probes
-- JSON Schema for YAML config (`config.schema.json`, `just schema`)
-- Dockerfile: multi-stage build, non-root `appuser`
+- Healthcheck endpoint (`--healthcheck-port`)
+- JSON Schema for YAML config (`just schema`)
+- HTTP request timeouts (30s total, 10s connect)
+- Correlation ID per scheduler tick for log tracing
 - Docker images published to GHCR (`ghcr.io/shpaker/feedforbot`)
-- OCI image labels and annotations for GHCR metadata
 
 ### Fixed
 
-- Cache diff uses `set` lookups instead of linear search (O(n) vs O(n²))
-- `FilesCache.read()` uses `try/except FileNotFoundError` instead of `exists()` + `open()` (TOCTOU fix)
-- `FilesCache` creates nested data directories (`parents=True`)
-- `FilesCache.write()` serializes datetimes properly (`model_dump(mode="json")`)
-- CI version injection path for pyproject.toml and `__version__.py`
-- Docker image tag strategy (removed SHA hash tags)
-- GHCR package description display (provenance disabled, manifest annotations)
+- Cache diff performance (set lookups instead of linear search)
+- File cache race condition on read
+- File cache datetime serialization
+- Docker image tag strategy and GHCR metadata
 
 ## [3.3.5] — 2024-12-29
 
