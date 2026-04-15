@@ -4,56 +4,77 @@ FeedForBot
 [![PyPI](https://img.shields.io/pypi/v/feedforbot.svg)](https://pypi.python.org/pypi/feedforbot)
 [![PyPI](https://img.shields.io/pypi/dm/feedforbot.svg)](https://pypi.python.org/pypi/feedforbot)
 [![Docker Pulls](https://img.shields.io/docker/pulls/shpaker/feedforbot)](https://hub.docker.com/r/shpaker/feedforbot)
-[![PyPI](https://img.shields.io/badge/code%20style-black-000000.svg)](href="https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-Forward links from RSS/Atom feeds to messengers
+Monitors RSS/Atom feeds on a cron schedule and forwards new entries to Telegram.
+Supports multiple feeds, Jinja2 message templates, file-based caching
+to avoid duplicate sends, and optional Sentry integration.
 
 Installation
 ------------
+
+Requires Python 3.14+.
 
 ```commandline
 pip install feedforbot -U
 ```
 
-Usage
------
+For the CLI (includes Click, structlog, YAML config, Sentry):
 
-### From code
+```commandline
+pip install "feedforbot[cli]" -U
+```
+
+Quick start
+-----------
+
+### As a library
+
+```python
+from feedforbot import Scheduler, TelegramBotTransport, RSSListener
+
+scheduler = Scheduler(
+    '*/5 * * * *',
+    listener=RSSListener('https://www.debian.org/News/news'),
+    transport=TelegramBotTransport(
+        token='123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD',
+        to='@channel',
+    ),
+)
+scheduler.run()  # blocks, checks the feed every 5 minutes
+```
+
+Async version — useful when running multiple schedulers
+or combining with other async tasks:
 
 ```python
 import asyncio
 
 from feedforbot import Scheduler, TelegramBotTransport, RSSListener
 
-
-def main():
-  loop = asyncio.new_event_loop()
-  asyncio.set_event_loop(loop)
-  scheduler = Scheduler(
-    '* * * * *',
+scheduler = Scheduler(
+    '*/5 * * * *',
     listener=RSSListener('https://www.debian.org/News/news'),
     transport=TelegramBotTransport(
-      token='123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD',
-      to='@channel',
-    )
-  )
-  scheduler.run()
-  loop.run_forever()
+        token='123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD',
+        to='@channel',
+    ),
+)
 
-if __name__ == '__main__':
-  main()
+asyncio.run(scheduler.arun())
 ```
 
-### CLI
+### CLI with YAML config
 
-#### Save to file `config.yml` data
+Create a `config.yml`:
 
-```yaml  
+```yaml
 ---
 cache:
   type: 'files'
 schedulers:
-  - listener:
+  - rule: '*/5 * * * *'
+    listener:
       type: 'rss'
       params:
         url: 'https://habr.com/ru/rss/all/all/?fl=ru'
@@ -67,19 +88,6 @@ schedulers:
           {{ ID }}
           <b>Tags</b>: {% for category in CATEGORIES %}{{ category }}{{ ", " if not loop.last else "" }}{% endfor %}
           <b>Author</b>: <a href="https://habr.com/users/{{ AUTHORS[0] }}">{{ AUTHORS[0] }}</a>
-  - listener:
-      type: 'rss'
-      params:
-        url: 'https://habr.com/ru/rss/news/?fl=ru'
-    transport:
-      type: 'telegram_bot'
-      params:
-        token: '123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD'
-        to: '@tmfeed'
-        template: |-
-          <b>{{ TITLE }}</b> #habr
-          {{ ID }}
-          <b>Tags</b>: {% for category in CATEGORIES %}{{ category }}{{ ", " if not loop.last else "" }}{% endfor %}
   - listener:
       type: 'rss'
       params:
@@ -97,22 +105,26 @@ schedulers:
           {{ TEXT }}
 ```
 
-#### Start script
+Run:
 
 ```commandline
 feedforbot --verbose config.yml
 ```
 
-### Docker 
+On the first run the cache is populated without sending messages,
+so existing feed entries won't flood the channel.
 
-#### Docker Hub
+Docker
+------
 
 ```commandline
-docker run shpaker/feedforbot --help
+docker run -v $(pwd)/config.yml:/config.yml \
+  ghcr.io/shpaker/feedforbot --verbose /config.yml
 ```
 
-#### GHCR
+Also available on [Docker Hub](https://hub.docker.com/r/shpaker/feedforbot):
 
 ```commandline
-docker run ghcr.io/shpaker/feedforbot --help
+docker run -v $(pwd)/config.yml:/config.yml \
+  shpaker/feedforbot --verbose /config.yml
 ```

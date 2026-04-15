@@ -1,5 +1,6 @@
 import asyncio
 import signal
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import click
@@ -10,6 +11,7 @@ from feedforbot.__version__ import __title__
 from feedforbot.__version__ import __version__ as _version
 from feedforbot.cli.config import read_config
 from feedforbot.cli.configure_logging import configure_logging
+from feedforbot.cli.healthcheck import run_healthcheck_server
 from feedforbot.cli.utils import echo_version
 from feedforbot.logger import logger
 
@@ -55,12 +57,20 @@ _VERBOSITY_LEVELS = (
     show_default=True,
     help="Sentry DSN.",
 )
+@option(
+    "--healthcheck-port",
+    type=click.INT,
+    default=None,
+    show_default=True,
+    help="Port for HTTP healthcheck endpoint.",
+)
 @pass_context
 def main(
     ctx: Context,
     configuration: Path,
     verbose: int,
     sentry: str | None,
+    healthcheck_port: int | None,
 ) -> None:
     """
     Bot for forwarding updates from RSS/Atom feeds
@@ -81,9 +91,19 @@ def main(
     schedulers = read_config(configuration)
 
     async def _run_forever() -> None:
+        loop = asyncio.get_running_loop()
+        loop.set_default_executor(
+            ThreadPoolExecutor(max_workers=len(schedulers)),
+        )
         tasks = [
             asyncio.create_task(scheduler.arun()) for scheduler in schedulers
         ]
+        if healthcheck_port is not None:
+            tasks.append(
+                asyncio.create_task(
+                    run_healthcheck_server(healthcheck_port),
+                ),
+            )
 
         def _shutdown(sig: signal.Signals) -> None:
             logger.info("shutdown: signal=%s", sig.name)

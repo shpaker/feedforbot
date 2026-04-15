@@ -31,7 +31,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: sed -i 's/0.1.0/'"${{ steps.extract_name_and_version.outputs.ver }}"'/' pyproject.toml
-      - run: sed -i 's/0.1.0/'"${{ steps.extract_name_and_version.outputs.ver }}"'/' feedforbot/version.py
+      - run: sed -i 's/0.1.0/'"${{ steps.extract_name_and_version.outputs.ver }}"'/' feedforbot/__version__.py
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -48,7 +48,9 @@ jobs:
             "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.major_ver }}"
             "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.minor_ver }}"
             "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.ver }}"
-          labels:
-            "org.opencontainers.image.source=https://github.com/${{ github.repository }}"
+          build-args: |
+            IMAGE_VERSION=${{ steps.extract_name_and_version.outputs.ver }}
+            IMAGE_CREATED=${{ github.event.release.created_at }}
+            IMAGE_REVISION=${{ github.sha }}
           cache-from: type=registry,ref=${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.minor_ver }}
           cache-to: type=inline

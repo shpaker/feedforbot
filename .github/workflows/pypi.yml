@@ -18,7 +18,7 @@ jobs:
           echo "ver=$(echo ${GITHUB_REF#refs/*/})" >> "$GITHUB_OUTPUT"
         id: extract_version
       - run: sed -i 's/0.1.0/'"${{ steps.extract_version.outputs.ver }}"'/' pyproject.toml
-      - run: sed -i 's/0.1.0/'"${{ steps.extract_version.outputs.ver }}"'/' feedforbot/version.py
+      - run: sed -i 's/0.1.0/'"${{ steps.extract_version.outputs.ver }}"'/' feedforbot/__version__.py
       - run: uv build
       - run: uv publish
         env:
