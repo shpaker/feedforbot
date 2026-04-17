@@ -22,7 +22,7 @@ _CONFIG = """
 """
 
 
-def _spawn(config: Path) -> subprocess.Popen[str]:
+def _spawn(config: Path) -> subprocess.Popen[bytes]:
     return subprocess.Popen(  # noqa: S603
         [
             sys.executable,
@@ -35,41 +35,47 @@ def _spawn(config: Path) -> subprocess.Popen[str]:
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
         start_new_session=True,
     )
 
 
 def _wait_for(
-    proc: subprocess.Popen[str],
+    proc: subprocess.Popen[bytes],
     needle: str,
     timeout: float,
 ) -> str:
     deadline = time.monotonic() + timeout
-    buf: list[str] = []
+    buf = bytearray()
     assert proc.stdout is not None
-    os.set_blocking(proc.stdout.fileno(), False)
+    fd = proc.stdout.fileno()
+    os.set_blocking(fd, False)
     while time.monotonic() < deadline:
         try:
-            chunk = proc.stdout.read()
+            chunk = os.read(fd, 4096)
         except BlockingIOError:
-            chunk = None
+            chunk = b""
         if chunk:
-            buf.append(chunk)
-            if needle in "".join(buf):
-                return "".join(buf)
+            buf.extend(chunk)
+            if needle in buf.decode("utf-8", errors="replace"):
+                return buf.decode("utf-8", errors="replace")
         time.sleep(0.05)
-    return "".join(buf)
+    return buf.decode("utf-8", errors="replace")
 
 
-def _drain(proc: subprocess.Popen[str]) -> str:
+def _drain(proc: subprocess.Popen[bytes]) -> str:
     if proc.stdout is None:
         return ""
-    try:
-        remainder = proc.stdout.read()
-    except (BlockingIOError, ValueError):
-        remainder = None
-    return remainder or ""
+    fd = proc.stdout.fileno()
+    data = bytearray()
+    while True:
+        try:
+            chunk = os.read(fd, 4096)
+        except (BlockingIOError, OSError):
+            break
+        if not chunk:
+            break
+        data.extend(chunk)
+    return data.decode("utf-8", errors="replace")
 
 
 @mark.skipif(
