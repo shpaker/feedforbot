@@ -1,3 +1,6 @@
+from types import TracebackType
+
+from jinja2 import select_autoescape
 from jinja2.sandbox import SandboxedEnvironment
 
 from feedforbot.__version__ import __title__
@@ -12,7 +15,12 @@ from feedforbot.sentry import capture_exception, new_scope
 from feedforbot.types import HttpClientProtocol, TransportProtocol
 
 
-_SANDBOX = SandboxedEnvironment()
+_SANDBOX = SandboxedEnvironment(
+    autoescape=select_autoescape(
+        default=True,
+        default_for_string=True,
+    ),
+)
 _DEFAULT_TEMPLATE_STR = "{{ TITLE }}\n\n{{ TEXT }}\n\n{{ URL }}"
 _DEFAULT_MESSAGE_TEMPLATE = _SANDBOX.from_string(
     _DEFAULT_TEMPLATE_STR,
@@ -44,6 +52,20 @@ class TelegramBotTransport(TransportProtocol):
 
     def __repr__(self) -> str:
         return f"<{__title__}.{self.__class__.__name__}: {self._to}>"
+
+    def close(self) -> None:
+        self._http.close()
+
+    def __enter__(self) -> "TelegramBotTransport":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.close()
 
     def _send_article(
         self,

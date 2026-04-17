@@ -30,6 +30,7 @@ class FakeHttpClient:
         self._post_response = post_response or {"ok": True}
         self._raise_on_post = raise_on_post
         self.post_calls: list[dict[str, Any]] = []
+        self.closed = False
 
     def get(self, url: str) -> bytes:
         raise NotImplementedError
@@ -44,6 +45,15 @@ class FakeHttpClient:
         if self._raise_on_post is not None:
             raise self._raise_on_post
         return self._post_response
+
+    def close(self) -> None:
+        self.closed = True
+
+    def __enter__(self) -> "FakeHttpClient":
+        return self
+
+    def __exit__(self, *_: Any) -> None:
+        self.close()
 
 
 def test_send_single_article() -> None:
@@ -179,6 +189,15 @@ def test_send_partial_failure() -> None:
                 raise HttpClientError("fail")
             return {"ok": True}
 
+        def close(self) -> None:
+            pass
+
+        def __enter__(self) -> "FailOnSecondHttpClient":
+            return self
+
+        def __exit__(self, *_: Any) -> None:
+            self.close()
+
     transport = TelegramBotTransport(
         token=_TOKEN,
         to=_CHAT_ID,
@@ -190,6 +209,59 @@ def test_send_partial_failure() -> None:
     failed = transport.send(a1, a2, a3)
     assert len(failed) == 1
     assert failed[0] == a2
+
+
+def test_default_template_html_escapes_article_fields() -> None:
+    http = FakeHttpClient()
+    transport = TelegramBotTransport(
+        token=_TOKEN,
+        to=_CHAT_ID,
+        http_client=http,
+    )
+    article = _article(
+        title="Ampersand & <script>",
+        text="body with <b> tags & chars",
+    )
+    transport.send(article)
+    text = http.post_calls[0]["data"]["text"]
+    assert "Ampersand &amp; &lt;script&gt;" in text
+    assert "body with &lt;b&gt; tags &amp; chars" in text
+    assert "<script>" not in text
+
+
+def test_custom_template_also_escapes_variables() -> None:
+    http = FakeHttpClient()
+    transport = TelegramBotTransport(
+        token=_TOKEN,
+        to=_CHAT_ID,
+        template="<b>{{ TITLE }}</b>",
+        http_client=http,
+    )
+    transport.send(_article(title="A & B"))
+    text = http.post_calls[0]["data"]["text"]
+    assert text == "<b>A &amp; B</b>"
+
+
+def test_close_closes_http_client() -> None:
+    http = FakeHttpClient()
+    transport = TelegramBotTransport(
+        token=_TOKEN,
+        to=_CHAT_ID,
+        http_client=http,
+    )
+    transport.close()
+    assert http.closed is True
+
+
+def test_context_manager_closes_http_client() -> None:
+    http = FakeHttpClient()
+    with TelegramBotTransport(
+        token=_TOKEN,
+        to=_CHAT_ID,
+        http_client=http,
+    ):
+        pass
+    assert http.closed is True
 
 
 def test_repr() -> None:

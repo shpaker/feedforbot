@@ -1,4 +1,5 @@
 from email.utils import parsedate_to_datetime
+from types import TracebackType
 from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
@@ -31,6 +32,20 @@ class RSSListener(ListenerProtocol):
 
     def __repr__(self) -> str:
         return f"<{__title__}.{self.__class__.__name__}: {self.url}>"
+
+    def close(self) -> None:
+        self._http.close()
+
+    def __enter__(self) -> "RSSListener":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.close()
 
     def _parse_entry(
         self,
@@ -68,15 +83,27 @@ class RSSListener(ListenerProtocol):
         except HttpClientError as exc:
             raise ListenerReceiveError from exc
         parsed = parse(response)
-        articles = tuple(self._parse_entry(entry) for entry in parsed.entries)
+        articles: list[ArticleModel] = []
+        skipped = 0
+        for entry in parsed.entries:
+            try:
+                articles.append(self._parse_entry(entry))
+            except Exception:  # noqa: BLE001
+                skipped += 1
+                logger.warning(
+                    "listener_entry_skipped: %s id=%s",
+                    self,
+                    entry.get("id") or entry.get("link"),
+                )
         logger.info(
-            "listener_receive: %s entries=%d",
+            "listener_receive: %s entries=%d skipped=%d",
             self,
             len(articles),
+            skipped,
         )
         logger.debug(
             "listener_receive_ids: %s ids=%s",
             self,
             [a.id for a in articles],
         )
-        return articles
+        return tuple(articles)

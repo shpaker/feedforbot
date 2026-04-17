@@ -22,6 +22,7 @@ class FakeHttpClient:
     ) -> None:
         self._get_response = get_response
         self._raise_on_get = raise_on_get
+        self.closed = False
 
     def get(self, url: str) -> bytes:  # noqa: ARG002
         if self._raise_on_get is not None:
@@ -35,6 +36,15 @@ class FakeHttpClient:
         data: dict[str, Any],
     ) -> dict[str, Any]:
         raise NotImplementedError
+
+    def close(self) -> None:
+        self.closed = True
+
+    def __enter__(self) -> "FakeHttpClient":
+        return self
+
+    def __exit__(self, *_: Any) -> None:
+        self.close()
 
 
 @freeze_time("2012-01-14 12:00:01+00:00")
@@ -138,3 +148,42 @@ def test_repr() -> None:
     listener = RSSListener(url=_TESTING_URL, http_client=http)
     assert _TESTING_URL in repr(listener)
     assert "RSSListener" in repr(listener)
+
+
+_MIXED_FEED = b"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+<title>t</title><link>http://x</link><description>d</description>
+<item>
+  <title>Good</title>
+  <link>https://example.com/good</link>
+  <description>ok body</description>
+  <guid>https://example.com/good</guid>
+</item>
+<item>
+  <link>https://example.com/bad</link>
+  <guid>https://example.com/bad</guid>
+</item>
+</channel></rss>
+"""
+
+
+def test_receive_skips_malformed_entries() -> None:
+    http = FakeHttpClient(get_response=_MIXED_FEED)
+    listener = RSSListener(url=_TESTING_URL, http_client=http)
+    feed = listener.receive()
+    assert len(feed) == 1
+    assert feed[0].title == "Good"
+
+
+def test_close_closes_http_client() -> None:
+    http = FakeHttpClient()
+    listener = RSSListener(url=_TESTING_URL, http_client=http)
+    listener.close()
+    assert http.closed is True
+
+
+def test_context_manager_closes_http_client() -> None:
+    http = FakeHttpClient()
+    with RSSListener(url=_TESTING_URL, http_client=http):
+        pass
+    assert http.closed is True

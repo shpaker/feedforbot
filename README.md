@@ -9,21 +9,34 @@ FeedForBot
 
 Monitors RSS/Atom feeds on a cron schedule and forwards new entries
 to Telegram. Supports multiple feeds, Jinja2 message templates,
-file-based caching to avoid duplicate sends, and optional Sentry
-integration for error tracking.
+pluggable caching (files, in-memory, Redis) to avoid duplicate
+sends, and optional Sentry integration for error tracking.
 
 Features
 --------
 
 - **Multiple feeds** — run any number of listener/transport pairs,
   each with its own cron schedule
-- **Jinja2 templates** — full control over message formatting
-  with access to article fields (`{{ TITLE }}`, `{{ URL }}`,
-  `{{ TEXT }}`, `{{ CATEGORIES }}`, `{{ AUTHORS }}`, etc.)
-- **Caching** — file-based (`~/.feedforbot/`) or in-memory; first
-  run populates the cache silently to avoid flooding the channel
+- **Jinja2 templates** — full control over message formatting with
+  access to article fields (`{{ TITLE }}`, `{{ URL }}`, `{{ TEXT }}`,
+  `{{ CATEGORIES }}`, `{{ AUTHORS }}`, etc.). Templates run in a
+  sandbox with HTML autoescape, so article fields with `&`, `<`, `>`
+  are safe by default
+- **Pluggable cache** — files (`~/.feedforbot/`), in-memory, or
+  Redis (shared across instances), selected via `--cache-dsn`;
+  first run populates the cache silently to avoid flooding the
+  channel. Optional `cache_limit` caps retention per scheduler
+- **Built-in healthcheck** — optional HTTP endpoint at `/health`
+  for Docker/Kubernetes probes
+- **Resilient delivery** — Telegram `429 flood-wait` responses are
+  retried automatically after `Retry-After`; malformed feed entries
+  are skipped with a warning instead of failing the whole tick
+- **Graceful shutdown** — `SIGTERM` / `SIGINT` drain in-flight ticks
+  and close HTTP/Redis/file handles cleanly (second signal forces
+  immediate exit)
 - **Sentry integration** — optional error tracking via `sentry-sdk`
-- **Docker ready** — multi-arch images on GHCR and Docker Hub
+- **Docker ready** — multi-arch images on GHCR and Docker Hub,
+  runs as non-root (`appuser`)
 - **Protocol-driven** — extend with custom listeners, transports,
   and cache backends by implementing simple protocols
 
@@ -95,49 +108,46 @@ asyncio.run(main())
 
 ### CLI with YAML config
 
-Create a `config.yml`:
+Create a `schedulers.yml` — a top-level list of listener+transport entries:
 
 ```yaml
 ---
-cache:
-  type: 'files'
-schedulers:
-  - rule: '*/5 * * * *'
-    listener:
-      type: 'rss'
-      params:
-        url: 'https://habr.com/ru/rss/all/all/?fl=ru'
-    transport:
-      type: 'telegram_bot'
-      params:
-        token: '123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD'
-        to: '@tmfeed'
-        template: |-
-          <b>{{ TITLE }}</b> #habr
-          {{ ID }}
-          <b>Tags</b>: {% for category in CATEGORIES %}{{ category }}{{ ", " if not loop.last else "" }}{% endfor %}
-          <b>Author</b>: <a href="https://habr.com/users/{{ AUTHORS[0] }}">{{ AUTHORS[0] }}</a>
-  - listener:
-      type: 'rss'
-      params:
-        url: 'http://www.opennet.ru/opennews/opennews_all.rss'
-    transport:
-      type: 'telegram_bot'
-      params:
-        token: '123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD'
-        to: '@tmfeed'
-        disable_web_page_preview: yes
-        template: |-
-          <b>{{ TITLE }}</b> #opennet
-          {{ URL }}
+- rule: '*/5 * * * *'
+  listener:
+    type: 'rss'
+    params:
+      url: 'https://habr.com/ru/rss/all/all/?fl=ru'
+  transport:
+    type: 'telegram_bot'
+    params:
+      token: '123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD'
+      to: '@tmfeed'
+      template: |-
+        <b>{{ TITLE }}</b> #habr
+        {{ ID }}
+        <b>Tags</b>: {% for category in CATEGORIES %}{{ category }}{{ ", " if not loop.last else "" }}{% endfor %}
+        <b>Author</b>: <a href="https://habr.com/users/{{ AUTHORS[0] }}">{{ AUTHORS[0] }}</a>
+- listener:
+    type: 'rss'
+    params:
+      url: 'http://www.opennet.ru/opennews/opennews_all.rss'
+  transport:
+    type: 'telegram_bot'
+    params:
+      token: '123456789:AAAAAAAAAA-BBBB-CCCCCCCCCCCC-DDDDDD'
+      to: '@tmfeed'
+      disable_web_page_preview: yes
+      template: |-
+        <b>{{ TITLE }}</b> #opennet
+        {{ URL }}
 
-          {{ TEXT }}
+        {{ TEXT }}
 ```
 
 Run:
 
 ```commandline
-feedforbot --verbose config.yml
+feedforbot --verbose schedulers.yml
 ```
 
 On the first run the cache is populated without sending messages,
@@ -145,18 +155,34 @@ so existing feed entries won't flood the channel.
 
 #### Config reference
 
+Each list entry supports:
+
 | Key | Description |
 |-----|-------------|
-| `cache.type` | `files` (persistent, default dir `~/.feedforbot/`) or `in_memory` |
-| `cache.params` | Backend-specific options (e.g. custom path for `files`) |
-| `schedulers[].rule` | Cron expression (e.g. `*/5 * * * *`) |
-| `schedulers[].listener.type` | `rss` |
-| `schedulers[].listener.params.url` | Feed URL |
-| `schedulers[].transport.type` | `telegram_bot` |
-| `schedulers[].transport.params.token` | Telegram Bot API token |
-| `schedulers[].transport.params.to` | Chat ID or `@channel` name |
-| `schedulers[].transport.params.template` | Jinja2 template string (HTML parse mode) |
-| `schedulers[].transport.params.disable_web_page_preview` | `true` / `false` |
+| `rule` | Cron expression (e.g. `*/5 * * * *`), optional — defaults to `* * * * *` (every minute) |
+| `cache_limit` | Max cache entries kept (keeps N most recent by `grabbed_at`), optional — unbounded when unset |
+| `listener.type` | `rss` |
+| `listener.params.url` | Feed URL |
+| `transport.type` | `telegram_bot` |
+| `transport.params.token` | Telegram Bot API token |
+| `transport.params.to` | Chat ID or `@channel` name |
+| `transport.params.template` | Jinja2 template string (HTML parse mode), optional — defaults to `{{ TITLE }}\n\n{{ TEXT }}\n\n{{ URL }}` |
+| `transport.params.disable_web_page_preview` | `true` / `false`, optional — defaults to `false` |
+| `transport.params.disable_notification` | `true` / `false`, optional — defaults to `false` |
+
+An empty top-level list is rejected at parse time.
+
+#### Cache CLI flag
+
+Cache backend selection is a CLI concern (not part of the schedulers file).
+`--cache-dsn` takes a URL-style DSN; scheme selects the backend:
+
+| DSN | Backend |
+|-----|---------|
+| `file:` (default) | Persistent on-disk cache at `~/.feedforbot/` |
+| `file:///custom/path` | Persistent on-disk cache at a custom directory |
+| `memory:` | In-process cache (lost on restart) |
+| `redis://host:6379/0` | Shared Redis cache (requires `feedforbot[cli]` or `pip install redis`). Useful for multi-instance deployments and docker-compose setups where a separate Redis container holds state. |
 
 #### Template variables
 
@@ -170,6 +196,24 @@ All fields from `ArticleModel` are available in uppercase:
 | `{{ TEXT }}` | Entry summary / description |
 | `{{ CATEGORIES }}` | List of tags/categories |
 | `{{ AUTHORS }}` | List of authors |
+| `{{ GRABBED_AT }}` | Timestamp when the entry was fetched (UTC) |
+
+Templates render in a Jinja2 sandbox with HTML autoescape enabled
+(messages use `parse_mode=HTML`). Article fields containing `&`,
+`<`, `>` are escaped automatically — you don't need to guard against
+Telegram rejecting the message for invalid HTML.
+
+#### CLI options
+
+| Option | Description |
+|--------|-------------|
+| `SCHEDULERS_FILE` | Positional — path to the YAML schedulers config |
+| `-v`, `--verbose` | Repeat for more detail (`-v` INFO, `-vv` DEBUG, `-vvv` NOTSET) |
+| `-V`, `--version` | Print version and exit |
+| `--cache-dsn` | Cache backend DSN (see table above); default `file:` |
+| `--sentry` | Sentry DSN for error reporting |
+| `--healthcheck-port` | Port for the HTTP healthcheck server (disabled when unset) |
+| `--healthcheck-host` | Bind host for the healthcheck server; default `127.0.0.1`. Use `0.0.0.0` inside containers when the port is exposed to the host |
 
 Docker
 ------
@@ -178,13 +222,13 @@ Images are published to both **GHCR** and **Docker Hub** on every
 release. Tags follow semver: `latest`, `4`, `4.0`, `4.0.0`.
 
 ```commandline
-docker run -v $(pwd)/config.yml:/config.yml \
-  ghcr.io/shpaker/feedforbot --verbose /config.yml
+docker run -v $(pwd)/schedulers.yml:/schedulers.yml \
+  ghcr.io/shpaker/feedforbot --verbose /schedulers.yml
 ```
 
 ```commandline
-docker run -v $(pwd)/config.yml:/config.yml \
-  shpaker/feedforbot --verbose /config.yml
+docker run -v $(pwd)/schedulers.yml:/schedulers.yml \
+  shpaker/feedforbot --verbose /schedulers.yml
 ```
 
 The container runs as a non-root user (`appuser`).
@@ -194,11 +238,17 @@ Healthcheck
 
 The CLI includes a built-in HTTP healthcheck server. Pass
 `--healthcheck-port` to expose a lightweight endpoint that responds
-with `200 OK` on every request:
+with `200 OK` at `/health` (other paths return `404 Not Found`):
 
 ```commandline
-feedforbot --healthcheck-port 8080 --verbose config.yml
+feedforbot --healthcheck-port 8080 --verbose schedulers.yml
 ```
+
+The server binds to `127.0.0.1` by default. Pass
+`--healthcheck-host 0.0.0.0` when the port must be reachable from
+outside the container (e.g. for an external probe); the in-container
+Docker `HEALTHCHECK` below works either way since it queries
+`localhost` from the same network namespace.
 
 Useful for container orchestrators (Docker `HEALTHCHECK`, Kubernetes
 liveness probes, etc.):
@@ -208,13 +258,61 @@ liveness probes, etc.):
 services:
   feedforbot:
     image: ghcr.io/shpaker/feedforbot
-    command: ["--healthcheck-port", "8080", "--verbose", "/config.yml"]
+    command: ["--healthcheck-port", "8080", "--verbose", "/schedulers.yml"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 5s
       retries: 3
 ```
+
+Docker Compose with Redis
+-------------------------
+
+For multi-instance deployments or when you want cache state to
+survive container rebuilds without a host volume for JSON files,
+run `feedforbot` alongside a Redis container and point
+`--cache-dsn` at it:
+
+```yaml
+# docker-compose.yml
+services:
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - ./redis_data:/data
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  feedforbot:
+    image: ghcr.io/shpaker/feedforbot
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./schedulers.yml:/schedulers.yml:ro
+    command: >
+      -v
+      --cache-dsn redis://redis:6379/0
+      --healthcheck-port 8080
+      /schedulers.yml
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+```
+
+A working Ansible playbook that deploys this layout is in
+[tmfeed/deploy.yml](tmfeed/deploy.yml).
 
 License
 -------

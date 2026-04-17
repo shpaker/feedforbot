@@ -1,5 +1,7 @@
+import json
 import time
 from collections.abc import Sequence
+from types import TracebackType
 from typing import Any
 
 import httpx
@@ -16,7 +18,18 @@ _DEFAULT_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 _DEFAULT_MAX_RETRIES = 3
 _DEFAULT_BACKOFF_BASE = 1.0
 _DEFAULT_BACKOFF_FACTOR = 2.0
+_DEFAULT_MAX_RETRY_AFTER = 60.0
 _SERVER_ERROR_THRESHOLD = 500
+_RATE_LIMIT_STATUS = 429
+
+
+def _parse_retry_after(value: str | None) -> float | None:
+    if value is None:
+        return None
+    try:
+        return max(0.0, float(value.strip()))
+    except ValueError:
+        return None
 
 
 class _LoggingHTTPTransport(
@@ -77,7 +90,7 @@ class _LoggingHTTPTransport(
                 url,
                 host,
                 duration_ms,
-                exc,
+                self._mask(f"{type(exc).__name__}: {exc}"),
             )
             raise
 
@@ -110,6 +123,7 @@ class HttpClient(HttpClientProtocol):
         max_retries: int = _DEFAULT_MAX_RETRIES,
         backoff_base: float = _DEFAULT_BACKOFF_BASE,
         backoff_factor: float = _DEFAULT_BACKOFF_FACTOR,
+        max_retry_after: float = _DEFAULT_MAX_RETRY_AFTER,
     ) -> None:
         transport = _LoggingHTTPTransport(
             sensitive_values=sensitive_values,
@@ -122,6 +136,7 @@ class HttpClient(HttpClientProtocol):
         self._max_retries = max_retries
         self._backoff_base = backoff_base
         self._backoff_factor = backoff_factor
+        self._max_retry_after = max_retry_after
 
     def _request(
         self,
@@ -139,7 +154,26 @@ class HttpClient(HttpClientProtocol):
                 )
                 response.raise_for_status()
             except httpx.HTTPStatusError as exc:
-                if exc.response.status_code < _SERVER_ERROR_THRESHOLD:
+                status = exc.response.status_code
+                if status == _RATE_LIMIT_STATUS:
+                    last_exc = exc
+                    retry_after = _parse_retry_after(
+                        exc.response.headers.get("Retry-After"),
+                    )
+                    if (
+                        retry_after is None
+                        or retry_after > self._max_retry_after
+                        or attempt >= self._max_retries - 1
+                    ):
+                        break
+                    logger.info(
+                        "http_rate_limited: attempt=%d retry_after=%.1fs",
+                        attempt + 1,
+                        retry_after,
+                    )
+                    time.sleep(retry_after)
+                    continue
+                if status < _SERVER_ERROR_THRESHOLD:
                     raise HttpResponseError from exc
                 last_exc = exc
             except httpx.HTTPError as exc:
@@ -169,7 +203,29 @@ class HttpClient(HttpClientProtocol):
         data: dict[str, Any],
     ) -> dict[str, Any]:
         response = self._request("POST", url, json=data)
-        return response.json()
+        try:
+            payload = response.json()
+        except (json.JSONDecodeError, ValueError) as exc:
+            logger.error(
+                "http_response_non_json: host=%s status=%d",
+                response.request.url.host,
+                response.status_code,
+            )
+            raise HttpResponseError from exc
+        if not isinstance(payload, dict):
+            raise HttpResponseError
+        return payload
 
     def close(self) -> None:
         self._client.close()
+
+    def __enter__(self) -> "HttpClient":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.close()

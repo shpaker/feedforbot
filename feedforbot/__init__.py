@@ -1,5 +1,5 @@
 from feedforbot.__version__ import __title__, __version__
-from feedforbot.cache import FilesCache, InMemoryCache
+from feedforbot.cache import FilesCache, InMemoryCache, RedisCache
 from feedforbot.listeners import RSSListener
 from feedforbot.scheduler import Scheduler
 from feedforbot.transports import TelegramBotTransport
@@ -16,6 +16,7 @@ __all__ = (
     "InMemoryCache",
     "ListenerProtocol",
     "RSSListener",
+    "RedisCache",
     "Scheduler",
     "TelegramBotTransport",
     "TransportProtocol",

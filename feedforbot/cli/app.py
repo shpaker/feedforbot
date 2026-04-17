@@ -1,12 +1,16 @@
 import asyncio
+import contextlib
 import signal
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from urllib.parse import urlparse
 
 import click
 import sentry_sdk
 from click import Context, argument, command, option, pass_context, types
 
+from feedforbot import CacheProtocol, FilesCache, InMemoryCache, RedisCache
 from feedforbot.__version__ import __title__
 from feedforbot.__version__ import __version__ as _version
 from feedforbot.cli.config import read_config
@@ -24,9 +28,46 @@ _VERBOSITY_LEVELS = (
 )
 
 
+def _build_cache_factory(
+    dsn: str,
+) -> Callable[[str], CacheProtocol]:
+    parsed = urlparse(dsn)
+    scheme = parsed.scheme
+
+    if scheme == "memory":
+
+        def _memory_factory(cache_id: str) -> CacheProtocol:
+            return InMemoryCache(id=cache_id)
+
+        return _memory_factory
+
+    if scheme == "file":
+        data_dir = Path(parsed.path) if parsed.path else None
+
+        def _file_factory(cache_id: str) -> CacheProtocol:
+            if data_dir is None:
+                return FilesCache(id=cache_id)
+            return FilesCache(id=cache_id, data_dir=data_dir)
+
+        return _file_factory
+
+    if scheme in ("redis", "rediss", "unix"):
+
+        def _redis_factory(cache_id: str) -> CacheProtocol:
+            return RedisCache(id=cache_id, url=dsn)
+
+        return _redis_factory
+
+    raise click.BadParameter(  # noqa: TRY003
+        f"unknown cache scheme {scheme!r} in {dsn!r}. "
+        "Supported: `memory:`, `file:[///path]`, `redis://…`.",
+        param_hint="'--cache-dsn'",
+    )
+
+
 @command()
 @argument(
-    "configuration",
+    "schedulers_file",
     required=True,
     type=types.Path(
         exists=True,
@@ -51,6 +92,19 @@ _VERBOSITY_LEVELS = (
     help="Show script version and exit.",
 )
 @option(
+    "--cache-dsn",
+    type=click.STRING,
+    default="file:",
+    show_default=True,
+    help=(
+        "Cache backend DSN. `file:` persists at ~/.feedforbot/; "
+        "`file:///custom/path` uses a custom directory; "
+        "`memory:` is in-process (lost on restart); "
+        "`redis://host:6379/0` uses Redis (requires the `cli` extra "
+        "or `pip install redis`)."
+    ),
+)
+@option(
     "--sentry",
     type=click.STRING,
     default=None,
@@ -62,15 +116,27 @@ _VERBOSITY_LEVELS = (
     type=click.INT,
     default=None,
     show_default=True,
-    help="Port for HTTP healthcheck endpoint.",
+    help="Port for HTTP healthcheck endpoint (served at /health).",
+)
+@option(
+    "--healthcheck-host",
+    type=click.STRING,
+    default="127.0.0.1",
+    show_default=True,
+    help=(
+        "Host for HTTP healthcheck endpoint. "
+        "Use 0.0.0.0 to bind on all interfaces (e.g. in containers)."
+    ),
 )
 @pass_context
 def main(
     ctx: Context,
-    configuration: Path,
+    schedulers_file: Path,
     verbose: int,
+    cache_dsn: str,
     sentry: str | None,
     healthcheck_port: int | None,
+    healthcheck_host: str,
 ) -> None:
     """
     Bot for forwarding updates from RSS/Atom feeds
@@ -88,11 +154,13 @@ def main(
         verbose = len(_VERBOSITY_LEVELS) - 1
     log_level = _VERBOSITY_LEVELS[verbose]
     configure_logging(log_level=log_level)
-    schedulers = read_config(configuration)
+    cache_factory = _build_cache_factory(cache_dsn)
+    schedulers = read_config(schedulers_file, cache_factory=cache_factory)
     logger.info(
-        "config_loaded: path=%s schedulers=%d",
-        configuration,
+        "config_loaded: path=%s schedulers=%d cache=%s",
+        schedulers_file,
         len(schedulers),
+        cache_dsn,
     )
 
     async def _run_forever() -> None:
@@ -106,35 +174,50 @@ def main(
         if healthcheck_port is not None:
             tasks.append(
                 asyncio.create_task(
-                    run_healthcheck_server(healthcheck_port),
+                    run_healthcheck_server(
+                        healthcheck_port,
+                        host=healthcheck_host,
+                    ),
                 ),
             )
 
+        shutting_down = False
+
         def _shutdown(sig: signal.Signals) -> None:
-            logger.info("shutdown: signal=%s", sig.name)
+            nonlocal shutting_down
+            if shutting_down:
+                logger.warning(
+                    "shutdown_force: signal=%s — aborting in-flight work",
+                    sig.name,
+                )
+                loop.stop()
+                return
+            shutting_down = True
+            logger.info("shutdown_start: signal=%s", sig.name)
             for scheduler in schedulers:
                 scheduler.stop()
             for task in tasks:
                 task.cancel()
 
-        loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
-            loop.add_signal_handler(
-                sig,
-                _shutdown,
-                sig,
-            )
+            # Windows: add_signal_handler unsupported — falls back to
+            # KeyboardInterrupt from asyncio.run
+            with contextlib.suppress(NotImplementedError):
+                loop.add_signal_handler(sig, _shutdown, sig)
 
         results = await asyncio.gather(
             *tasks,
             return_exceptions=True,
         )
         for i, result in enumerate(results):
+            if isinstance(result, asyncio.CancelledError):
+                continue
             if isinstance(result, Exception):
                 logger.error(
                     "task_crashed: index=%d error=%s",
                     i,
                     result,
                 )
+        logger.info("shutdown_complete")
 
     asyncio.run(_run_forever())
