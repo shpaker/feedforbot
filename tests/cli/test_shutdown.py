@@ -62,6 +62,16 @@ def _wait_for(
     return "".join(buf)
 
 
+def _drain(proc: subprocess.Popen[str]) -> str:
+    if proc.stdout is None:
+        return ""
+    try:
+        remainder = proc.stdout.read()
+    except (BlockingIOError, ValueError):
+        remainder = None
+    return remainder or ""
+
+
 @mark.skipif(
     sys.platform == "win32",
     reason="POSIX signal handling only",
@@ -83,8 +93,7 @@ def test_sigterm_triggers_graceful_shutdown(tmp_path: Path) -> None:
             raise
 
         assert proc.returncode == 0, (start_out, proc.returncode)
-        remainder = proc.stdout.read() if proc.stdout else ""
-        combined = start_out + (remainder or "")
+        combined = start_out + _drain(proc)
         assert "shutdown_start" in combined, combined
         assert "shutdown_complete" in combined, combined
     finally:
@@ -115,8 +124,7 @@ def test_double_sigint_forces_shutdown(tmp_path: Path) -> None:
             proc.kill()
             raise
 
-        remainder = proc.stdout.read() if proc.stdout else ""
-        combined = start_out + (remainder or "")
+        combined = start_out + _drain(proc)
         assert "shutdown_start" in combined, combined
     finally:
         if proc.poll() is None:

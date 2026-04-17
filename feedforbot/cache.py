@@ -172,7 +172,7 @@ class FilesCache(CacheProtocol):
                 fh.write(payload)
                 fh.flush()
                 os.fsync(fh.fileno())
-            tmp.replace(self.cache_path)
+            os.replace(tmp, self.cache_path)  # noqa: PTH105
         except BaseException:
             with contextlib.suppress(OSError):
                 tmp.unlink()
