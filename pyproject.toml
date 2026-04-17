@@ -19,6 +19,7 @@ dependencies = [
 cli = [
   "click>=8.1,<9",
   "pyyaml>=6.0,<7",
+  "redis>=5,<6",
   "sentry-sdk>=2.0,<3",
   "structlog>=24.1",
 ]
@@ -33,6 +34,7 @@ Repository = "https://github.com/shpaker/feedforbot"
 [dependency-groups]
 dev = [
   "feedforbot[cli]",
+  "fakeredis>=2,<3",
   "freezegun>=1.5",
   "mypy>=1.15,<2",
   "pytest>=8.3",

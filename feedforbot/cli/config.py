@@ -11,32 +11,21 @@ else:
         pass
 
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, TypeAdapter
 from yaml import safe_load
 
 from feedforbot import (
     CacheProtocol,
-    FilesCache,
-    InMemoryCache,
     ListenerProtocol,
     RSSListener,
     Scheduler,
     TelegramBotTransport,
     TransportProtocol,
 )
-
-
-class _CacheTypes(StrEnum):
-    IN_MEMORY = "in_memory"
-    FILES = "files"
-
-
-class _CacheConfigMapping(Enum):
-    IN_MEMORY = InMemoryCache
-    FILES = FilesCache
 
 
 class _ListenerTypes(StrEnum):
@@ -67,26 +56,21 @@ class _TransportConfigModel(_ConfigEntryModel):
     type: _TransportTypes
 
 
-class _CacheConfigModel(_ConfigEntryModel):
-    type: _CacheTypes
-
-
 class _SchedulerConfigModel(BaseModel):
     rule: str = "* * * * *"
+    cache_limit: int | None = None
     listener: _ListenerConfigModel
     transport: _TransportConfigModel
 
 
-class _ConfigModel(BaseModel):
-    cache: _CacheConfigModel
-    schedulers: tuple[_SchedulerConfigModel, ...]
-
-
-def _cache_from_config(
-    config: _ConfigModel,
-) -> type[CacheProtocol]:
-    name = config.cache.type.name
-    return _CacheConfigMapping[name].value
+_SchedulersAdapter: TypeAdapter[tuple[_SchedulerConfigModel, ...]] = (
+    TypeAdapter(
+        Annotated[
+            tuple[_SchedulerConfigModel, ...],
+            Field(min_length=1),
+        ],
+    )
+)
 
 
 def _listener_from_config(
@@ -106,38 +90,39 @@ def _transport_from_config(
 def _make_scheduler_from_config(
     config: _SchedulerConfigModel,
     *,
-    cache_cls: Any,
+    cache_factory: Callable[[str], CacheProtocol],
 ) -> Scheduler:
     transport_cls = _transport_from_config(config)
     listener_cls = _listener_from_config(config)
     listener = listener_cls(**config.listener.params)
     transport = transport_cls(**config.transport.params)
+    cache_id = (
+        f"{config.listener.type.value}"
+        f":{config.listener.params.get('url', '')}"
+        f"|{config.transport.type.value}"
+        f":{config.transport.params.get('to', '')}"
+    )
     return Scheduler(
         config.rule,
         listener=listener,
         transport=transport,
-        cache=cache_cls(
-            id=(
-                f"{config.listener.type.value}"
-                f":{config.listener.params.get('url', '')}"
-                f"|{config.transport.type.value}"
-                f":{config.transport.params.get('to', '')}"
-            ),
-        ),
+        cache=cache_factory(cache_id),
+        cache_limit=config.cache_limit,
     )
 
 
 def read_config(
     path: Path,
+    *,
+    cache_factory: Callable[[str], CacheProtocol],
 ) -> tuple[Scheduler, ...]:
     with path.open(encoding="utf-8", mode="r") as fh:
         data = safe_load(fh.read())
-    config = _ConfigModel(**data)
-    cache_cls = _cache_from_config(config)
+    schedulers_config = _SchedulersAdapter.validate_python(data)
     return tuple(
         _make_scheduler_from_config(
             scheduler_config,
-            cache_cls=cache_cls,
+            cache_factory=cache_factory,
         )
-        for scheduler_config in config.schedulers
+        for scheduler_config in schedulers_config
     )

@@ -1,9 +1,11 @@
+from collections.abc import Callable
 from pathlib import Path
 
 from pydantic import ValidationError
 from pytest import raises
 
 from feedforbot import (
+    CacheProtocol,
     FilesCache,
     InMemoryCache,
     RSSListener,
@@ -11,6 +13,19 @@ from feedforbot import (
     TelegramBotTransport,
 )
 from feedforbot.cli.config import read_config
+
+
+def _in_memory_factory(cache_id: str) -> CacheProtocol:
+    return InMemoryCache(id=cache_id)
+
+
+def _files_factory(
+    data_dir: Path,
+) -> Callable[[str], CacheProtocol]:
+    def _factory(cache_id: str) -> CacheProtocol:
+        return FilesCache(id=cache_id, data_dir=data_dir)
+
+    return _factory
 
 
 def _write_config(
@@ -26,21 +41,18 @@ def test_minimal_config(tmp_path: Path) -> None:
     path = _write_config(
         tmp_path,
         """
-cache:
-  type: in_memory
-schedulers:
-  - listener:
-      type: rss
-      params:
-        url: https://example.com/feed
-    transport:
-      type: telegram_bot
-      params:
-        token: fake-token
-        to: "@chan"
+- listener:
+    type: rss
+    params:
+      url: https://example.com/feed
+  transport:
+    type: telegram_bot
+    params:
+      token: fake-token
+      to: "@chan"
 """,
     )
-    schedulers = read_config(path)
+    schedulers = read_config(path, cache_factory=_in_memory_factory)
     assert len(schedulers) == 1
     s = schedulers[0]
     assert isinstance(s, Scheduler)
@@ -54,44 +66,43 @@ def test_files_cache(tmp_path: Path) -> None:
     path = _write_config(
         tmp_path,
         """
-cache:
-  type: files
-schedulers:
-  - listener:
-      type: rss
-      params:
-        url: https://example.com/feed
-    transport:
-      type: telegram_bot
-      params:
-        token: fake-token
-        to: "@chan"
+- listener:
+    type: rss
+    params:
+      url: https://example.com/feed
+  transport:
+    type: telegram_bot
+    params:
+      token: fake-token
+      to: "@chan"
 """,
     )
-    schedulers = read_config(path)
-    assert isinstance(schedulers[0].cache, FilesCache)
+    schedulers = read_config(
+        path,
+        cache_factory=_files_factory(tmp_path),
+    )
+    cache = schedulers[0].cache
+    assert isinstance(cache, FilesCache)
+    assert cache.data_dir == tmp_path.resolve()
 
 
 def test_custom_cron_rule(tmp_path: Path) -> None:
     path = _write_config(
         tmp_path,
         """
-cache:
-  type: in_memory
-schedulers:
-  - rule: "*/5 * * * *"
-    listener:
-      type: rss
-      params:
-        url: https://example.com/feed
-    transport:
-      type: telegram_bot
-      params:
-        token: fake-token
-        to: "@chan"
+- rule: "*/5 * * * *"
+  listener:
+    type: rss
+    params:
+      url: https://example.com/feed
+  transport:
+    type: telegram_bot
+    params:
+      token: fake-token
+      to: "@chan"
 """,
     )
-    schedulers = read_config(path)
+    schedulers = read_config(path, cache_factory=_in_memory_factory)
     assert schedulers[0].cron_rule == "*/5 * * * *"
 
 
@@ -99,84 +110,60 @@ def test_multiple_schedulers(tmp_path: Path) -> None:
     path = _write_config(
         tmp_path,
         """
-cache:
-  type: in_memory
-schedulers:
-  - listener:
-      type: rss
-      params:
-        url: https://example.com/feed1
-    transport:
-      type: telegram_bot
-      params:
-        token: token1
-        to: "@chan1"
-  - listener:
-      type: rss
-      params:
-        url: https://example.com/feed2
-    transport:
-      type: telegram_bot
-      params:
-        token: token2
-        to: "@chan2"
+- listener:
+    type: rss
+    params:
+      url: https://example.com/feed1
+  transport:
+    type: telegram_bot
+    params:
+      token: token1
+      to: "@chan1"
+- listener:
+    type: rss
+    params:
+      url: https://example.com/feed2
+  transport:
+    type: telegram_bot
+    params:
+      token: token2
+      to: "@chan2"
 """,
     )
-    schedulers = read_config(path)
+    schedulers = read_config(path, cache_factory=_in_memory_factory)
     expected = 2
     assert len(schedulers) == expected
-
-
-def test_invalid_cache_type(tmp_path: Path) -> None:
-    path = _write_config(
-        tmp_path,
-        """
-cache:
-  type: redis
-schedulers:
-  - listener:
-      type: rss
-      params:
-        url: https://example.com/feed
-    transport:
-      type: telegram_bot
-      params:
-        token: fake
-        to: "@chan"
-""",
-    )
-    with raises(ValidationError):
-        read_config(path)
 
 
 def test_invalid_listener_type(tmp_path: Path) -> None:
     path = _write_config(
         tmp_path,
         """
-cache:
-  type: in_memory
-schedulers:
-  - listener:
-      type: unknown
-      params:
-        url: https://example.com
-    transport:
-      type: telegram_bot
-      params:
-        token: fake
-        to: "@chan"
+- listener:
+    type: unknown
+    params:
+      url: https://example.com
+  transport:
+    type: telegram_bot
+    params:
+      token: fake
+      to: "@chan"
 """,
     )
     with raises(ValidationError):
-        read_config(path)
+        read_config(path, cache_factory=_in_memory_factory)
 
 
-def test_cache_id_is_stable(tmp_path: Path) -> None:
+def test_empty_config_rejected(tmp_path: Path) -> None:
+    path = _write_config(tmp_path, "[]\n")
+    with raises(ValidationError):
+        read_config(path, cache_factory=_in_memory_factory)
+
+
+def test_invalid_root_is_not_list(tmp_path: Path) -> None:
     path = _write_config(
         tmp_path,
         """
-cache:
-  type: in_memory
 schedulers:
   - listener:
       type: rss
@@ -185,12 +172,31 @@ schedulers:
     transport:
       type: telegram_bot
       params:
-        token: fake-token
+        token: fake
         to: "@chan"
 """,
     )
-    s1 = read_config(path)
-    s2 = read_config(path)
+    with raises(ValidationError):
+        read_config(path, cache_factory=_in_memory_factory)
+
+
+def test_cache_id_is_stable(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        """
+- listener:
+    type: rss
+    params:
+      url: https://example.com/feed
+  transport:
+    type: telegram_bot
+    params:
+      token: fake-token
+      to: "@chan"
+""",
+    )
+    s1 = read_config(path, cache_factory=_in_memory_factory)
+    s2 = read_config(path, cache_factory=_in_memory_factory)
     c1 = s1[0].cache
     c2 = s2[0].cache
     assert isinstance(c1, InMemoryCache)

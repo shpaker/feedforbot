@@ -7,7 +7,6 @@ import structlog
 from croniter import croniter
 from epyxid import XID
 
-from feedforbot.article import ArticleModel
 from feedforbot.cache import InMemoryCache
 from feedforbot.exceptions import ListenerReceiveError
 from feedforbot.logger import logger
@@ -27,11 +26,13 @@ class Scheduler:
         listener: ListenerProtocol,
         transport: TransportProtocol,
         cache: CacheProtocol | None = None,
+        cache_limit: int | None = None,
     ) -> None:
         self.cron_rule = cron_rule
         self.listener = listener
         self.transport = transport
         self.cache = cache or InMemoryCache(id=listener.source_id)
+        self.cache_limit = cache_limit
         self._stop_event = threading.Event()
 
     def _tick(
@@ -77,19 +78,18 @@ class Scheduler:
                 self.listener,
                 len(articles),
             )
-            self.cache.write(*articles)
+            self.cache.add(*articles)
+            self._maybe_trim()
             return
-        cached_set = set(self.cache.read())
-        to_send = tuple(
-            article for article in articles if article not in cached_set
-        )
+        known = self.cache.known_ids
+        to_send = tuple(a for a in articles if a.id not in known)
         if not to_send:
             logger.debug(
                 "scheduler_no_new_articles: %s",
                 self.listener,
             )
-            merged = self._merge_articles(cached_set, articles)
-            self.cache.write(*merged)
+            self.cache.add(*articles)
+            self._maybe_trim()
             return
         _oldest = datetime.min.replace(tzinfo=timezone.utc)
         to_send = tuple(
@@ -112,12 +112,14 @@ class Scheduler:
                 self.listener,
                 failed_ids,
             )
-        failed_set = set(failed)
-        cacheable = tuple(
-            article for article in articles if article not in failed_set
-        )
-        merged = self._merge_articles(cached_set, cacheable)
-        self.cache.write(*merged)
+        failed_id_set = {a.id for a in failed}
+        cacheable = tuple(a for a in articles if a.id not in failed_id_set)
+        self.cache.add(*cacheable)
+        self._maybe_trim()
+
+    def _maybe_trim(self) -> None:
+        if self.cache_limit is not None:
+            self.cache.trim(self.cache_limit)
 
     def stop(self) -> None:
         self._stop_event.set()
@@ -132,13 +134,14 @@ class Scheduler:
         )
         self._stop_event.clear()
         cron = croniter(self.cron_rule)
-        while not self._stop_event.is_set():
-            delay = cron.get_next(float) - time.time()
-            if delay > 0 and self._stop_event.wait(
-                timeout=delay,
-            ):
-                break
-            self._tick()
+        with self.listener, self.transport:
+            while not self._stop_event.is_set():
+                delay = cron.get_next(float) - time.time()
+                if delay > 0 and self._stop_event.wait(
+                    timeout=delay,
+                ):
+                    break
+                self._tick()
 
     async def arun(self) -> None:
         logger.info(
@@ -150,24 +153,14 @@ class Scheduler:
         )
         self._stop_event.clear()
         cron = croniter(self.cron_rule)
-        while not self._stop_event.is_set():
-            delay = cron.get_next(float) - time.time()
-            if delay > 0:
-                try:
-                    await asyncio.sleep(delay)
-                except asyncio.CancelledError:
-                    return
-            if self._stop_event.is_set():
-                break
-            await asyncio.to_thread(self._tick)
-
-    @staticmethod
-    def _merge_articles(
-        cached: set[ArticleModel],
-        *groups: tuple[ArticleModel, ...],
-    ) -> tuple[ArticleModel, ...]:
-        seen: dict[str, ArticleModel] = {a.id: a for a in cached}
-        for group in groups:
-            for article in group:
-                seen[article.id] = article
-        return tuple(seen.values())
+        with self.listener, self.transport:
+            while not self._stop_event.is_set():
+                delay = cron.get_next(float) - time.time()
+                if delay > 0:
+                    try:
+                        await asyncio.sleep(delay)
+                    except asyncio.CancelledError:
+                        return
+                if self._stop_event.is_set():
+                    break
+                await asyncio.to_thread(self._tick)

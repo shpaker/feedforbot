@@ -9,6 +9,38 @@ from feedforbot.exceptions import ListenerReceiveError
 from feedforbot.scheduler import Scheduler
 
 
+class FakeCache:
+    def __init__(
+        self,
+        cached: Iterable[ArticleModel] | None = None,
+    ) -> None:
+        self._ids: set[str] = set()
+        self._populated = False
+        if cached is not None:
+            self._populated = True
+            for a in cached:
+                self._ids.add(a.id)
+        self.added: list[tuple[ArticleModel, ...]] = []
+        self.trim_calls: list[int] = []
+
+    @property
+    def is_populated(self) -> bool:
+        return self._populated
+
+    @property
+    def known_ids(self) -> set[str]:
+        return set(self._ids)
+
+    def add(self, *articles: ArticleModel) -> None:
+        for a in articles:
+            self._ids.add(a.id)
+        self._populated = True
+        self.added.append(articles)
+
+    def trim(self, limit: int) -> None:
+        self.trim_calls.append(limit)
+
+
 def _article(**kwargs: Any) -> ArticleModel:
     defaults: dict[str, Any] = {
         "id": "1",
@@ -31,11 +63,21 @@ class FakeListener:
     ) -> None:
         self._articles = articles
         self._raise_on_receive = raise_on_receive
+        self.closed = False
 
     def receive(self) -> tuple[ArticleModel, ...]:
         if self._raise_on_receive is not None:
             raise self._raise_on_receive
         return self._articles
+
+    def close(self) -> None:
+        self.closed = True
+
+    def __enter__(self) -> "FakeListener":
+        return self
+
+    def __exit__(self, *_: Any) -> None:
+        self.close()
 
 
 class FakeTransport:
@@ -45,6 +87,7 @@ class FakeTransport:
     ) -> None:
         self._failed = failed or []
         self.sent: list[ArticleModel] = []
+        self.closed = False
 
     def send(
         self,
@@ -53,31 +96,14 @@ class FakeTransport:
         self.sent.extend(articles)
         return self._failed
 
+    def close(self) -> None:
+        self.closed = True
 
-class FakeCache:
-    def __init__(
-        self,
-        cached: Iterable[ArticleModel] | None = None,
-    ) -> None:
-        if cached is None:
-            self._cached: tuple[ArticleModel, ...] = ()
-            self._populated = False
-        else:
-            self._cached = tuple(cached)
-            self._populated = True
-        self.written: list[tuple[ArticleModel, ...]] = []
+    def __enter__(self) -> "FakeTransport":
+        return self
 
-    @property
-    def is_populated(self) -> bool:
-        return self._populated
-
-    def read(self) -> Iterable[ArticleModel]:
-        return self._cached
-
-    def write(self, *articles: ArticleModel) -> None:
-        self._cached = articles
-        self._populated = True
-        self.written.append(articles)
+    def __exit__(self, *_: Any) -> None:
+        self.close()
 
 
 def _make_scheduler(
@@ -85,12 +111,14 @@ def _make_scheduler(
     listener: FakeListener | None = None,
     transport: FakeTransport | None = None,
     cache: FakeCache | None = None,
+    cache_limit: int | None = None,
 ) -> Scheduler:
     return Scheduler(
         "* * * * *",
         listener=listener or FakeListener(),
         transport=transport or FakeTransport(),
         cache=cache,
+        cache_limit=cache_limit,
     )
 
 
@@ -108,8 +136,8 @@ def test_first_run_populates_cache_without_sending() -> None:
     scheduler._tick()  # noqa: SLF001
 
     assert transport.sent == []
-    assert len(cache.written) == 1
-    assert cache.written[0] == (a1, a2)
+    assert cache.known_ids == {"1", "2"}
+    assert len(cache.added) == 1
 
 
 def test_sends_new_articles() -> None:
@@ -126,7 +154,7 @@ def test_sends_new_articles() -> None:
     scheduler._tick()  # noqa: SLF001
 
     assert transport.sent == [new]
-    assert cache.written[0] == (old, new)
+    assert cache.known_ids == {"old", "new"}
 
 
 def test_no_new_articles_updates_cache() -> None:
@@ -142,8 +170,7 @@ def test_no_new_articles_updates_cache() -> None:
     scheduler._tick()  # noqa: SLF001
 
     assert transport.sent == []
-    assert len(cache.written) == 1
-    assert cache.written[0] == (a1,)
+    assert cache.known_ids == {"1"}
 
 
 def test_listener_error_is_handled() -> None:
@@ -160,7 +187,7 @@ def test_listener_error_is_handled() -> None:
     scheduler._tick()  # noqa: SLF001
 
     assert transport.sent == []
-    assert cache.written == []
+    assert cache.added == []
 
 
 def test_partial_send_failure_excludes_failed_from_cache() -> None:
@@ -178,10 +205,10 @@ def test_partial_send_failure_excludes_failed_from_cache() -> None:
     scheduler._tick()  # noqa: SLF001
 
     assert transport.sent == [a1, a2]
-    written_ids = {a.id for a in cache.written[0]}
-    assert "old" in written_ids
-    assert "a1" in written_ids
-    assert "a2" not in written_ids
+    ids = cache.known_ids
+    assert "old" in ids
+    assert "a1" in ids
+    assert "a2" not in ids
 
 
 def test_all_send_failed_keeps_old_in_cache() -> None:
@@ -199,10 +226,10 @@ def test_all_send_failed_keeps_old_in_cache() -> None:
     scheduler._tick()  # noqa: SLF001
 
     assert set(transport.sent) == {new1, new2}
-    written_ids = {a.id for a in cache.written[0]}
-    assert "old" in written_ids
-    assert "n1" not in written_ids
-    assert "n2" not in written_ids
+    ids = cache.known_ids
+    assert "old" in ids
+    assert "n1" not in ids
+    assert "n2" not in ids
 
 
 def test_reappearing_article_not_resent() -> None:
@@ -281,15 +308,37 @@ async def test_arun_stop() -> None:
     await asyncio.gather(task, stop_task)
 
 
+def test_run_closes_listener_and_transport() -> None:
+    listener = FakeListener(articles=(_article(),))
+    transport = FakeTransport()
+
+    class StopAfterFirstTick(Scheduler):
+        def _tick(self) -> None:
+            super()._tick()
+            self.stop()
+
+    scheduler = StopAfterFirstTick(
+        "* * * * *",
+        listener=listener,
+        transport=transport,
+        cache=FakeCache(cached=None),
+    )
+    scheduler.run()
+
+    assert listener.closed is True
+    assert transport.closed is True
+
+
 def test_tick_survives_unexpected_exception() -> None:
     """Scheduler must not die when _tick_inner raises
     an unexpected exception (e.g. cache/transport bug)."""
 
-    class BrokenCacheOnRead(FakeCache):
-        def read(self) -> Any:
+    class BrokenCacheOnKnownIds(FakeCache):
+        @property
+        def known_ids(self) -> set[str]:
             raise RuntimeError("disk on fire")
 
-    cache = BrokenCacheOnRead(cached=[_article(id="old")])
+    cache = BrokenCacheOnKnownIds(cached=[_article(id="old")])
     transport = FakeTransport()
     scheduler = _make_scheduler(
         listener=FakeListener(articles=(_article(id="old"),)),
@@ -297,11 +346,29 @@ def test_tick_survives_unexpected_exception() -> None:
         cache=cache,
     )
 
-    # First tick hits cache.read() which raises — scheduler
-    # must catch the exception instead of propagating it.
     scheduler._tick()  # noqa: SLF001
 
-    # The scheduler is still alive (no exception propagated).
-    # Transport was never called because the error happened
-    # before send.
     assert transport.sent == []
+
+
+def test_cache_limit_triggers_trim() -> None:
+    a1 = _article(id="1")
+    cache = FakeCache(cached=[a1])
+    scheduler = _make_scheduler(
+        listener=FakeListener(articles=(a1,)),
+        cache=cache,
+        cache_limit=5,
+    )
+    scheduler._tick()  # noqa: SLF001
+    assert cache.trim_calls == [5]
+
+
+def test_no_cache_limit_skips_trim() -> None:
+    a1 = _article(id="1")
+    cache = FakeCache(cached=[a1])
+    scheduler = _make_scheduler(
+        listener=FakeListener(articles=(a1,)),
+        cache=cache,
+    )
+    scheduler._tick()  # noqa: SLF001
+    assert cache.trim_calls == []

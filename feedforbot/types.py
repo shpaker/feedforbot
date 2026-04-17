@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from types import TracebackType
 from typing import Any, Protocol
 
 from feedforbot.article import ArticleModel
@@ -19,6 +19,17 @@ class HttpClientProtocol(
         data: dict[str, Any],
     ) -> dict[str, Any]: ...
 
+    def close(self) -> None: ...
+
+    def __enter__(self) -> "HttpClientProtocol": ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None: ...
+
 
 class CacheProtocol(
     Protocol,
@@ -26,14 +37,18 @@ class CacheProtocol(
     @property
     def is_populated(self) -> bool: ...
 
-    def write(
+    @property
+    def known_ids(self) -> set[str]: ...
+
+    def add(
         self,
         *articles: ArticleModel,
     ) -> None: ...
 
-    def read(
+    def trim(
         self,
-    ) -> Iterable[ArticleModel]: ...
+        limit: int,
+    ) -> None: ...
 
 
 class ListenerProtocol(
@@ -45,6 +60,17 @@ class ListenerProtocol(
         self,
     ) -> tuple[ArticleModel, ...]: ...
 
+    def close(self) -> None: ...
+
+    def __enter__(self) -> "ListenerProtocol": ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None: ...
+
 
 class TransportProtocol(
     Protocol,
@@ -53,3 +79,14 @@ class TransportProtocol(
         self,
         *articles: ArticleModel,
     ) -> list[ArticleModel]: ...
+
+    def close(self) -> None: ...
+
+    def __enter__(self) -> "TransportProtocol": ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None: ...

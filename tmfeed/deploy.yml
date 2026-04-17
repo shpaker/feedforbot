@@ -46,18 +46,18 @@
         state: directory
         mode: "0755"
 
-    - name: Create feedforbot data directory
+    - name: Create redis data directory
       file:
-        path: "{{ feedforbot_dir }}/feedforbot_data"
+        path: "{{ feedforbot_dir }}/redis_data"
         state: directory
         owner: "999"
         group: "999"
         mode: "0755"
       become: true
 
-    - name: Fix feedforbot_data file ownership
+    - name: Fix redis_data file ownership
       become: true
-      shell: chown -R 999:999 "{{ feedforbot_dir }}/feedforbot_data"
+      shell: chown -R 999:999 "{{ feedforbot_dir }}/redis_data"
       changed_when: false
 
     - name: Deploy config.yml
@@ -80,16 +80,32 @@
         mode: "0644"
         content: |
           services:
+            redis:
+              image: redis:7-alpine
+              container_name: feedforbot-redis
+              restart: always
+              volumes:
+                - ./redis_data:/data
+              command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+              healthcheck:
+                test: ["CMD", "redis-cli", "ping"]
+                interval: 10s
+                timeout: 3s
+                retries: 3
+                start_period: 5s
+
             feedforbot:
               image: {{ feedforbot_image }}
               container_name: feedforbot
               restart: always
+              depends_on:
+                redis:
+                  condition: service_healthy
               volumes:
                 - ./config.yml:/config.yml:ro
-                - ./feedforbot_data:/home/appuser/.feedforbot/
-              command: -v --healthcheck-port 8080 {{ ('--sentry ' + feedforbot_sentry) if feedforbot_sentry != '' else '' }} /config.yml
+              command: -v --cache-dsn redis://redis:6379/0 --healthcheck-port 8080 {{ ('--sentry ' + feedforbot_sentry) if feedforbot_sentry != '' else '' }} /config.yml
               healthcheck:
-                test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/')"]
+                test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
                 interval: 30s
                 timeout: 5s
                 retries: 3

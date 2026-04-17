@@ -231,3 +231,128 @@ def test_retry_exhausted_raises(
     )
     with raises(HttpResponseError):
         client.get(f"{_BASE_URL}/down")
+
+
+def test_post_raises_on_non_json_response(
+    respx_mock: MockRouter,
+) -> None:
+    respx_mock.post(f"{_BASE_URL}/api").respond(
+        status_code=200,
+        content=b"<html>503 backend down</html>",
+        headers={"content-type": "text/html"},
+    )
+    client = _no_retry_client()
+    with raises(HttpResponseError):
+        client.post(
+            f"{_BASE_URL}/api",
+            data={"key": "value"},
+        )
+
+
+def test_masks_token_in_exception_message(
+    respx_mock: MockRouter,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    token = "secret-bot-token-789"
+    url = f"{_BASE_URL}/bot{token}/sendMessage"
+    respx_mock.post(url).mock(
+        side_effect=httpx.ConnectError(
+            f"failed to connect to {url}",
+        ),
+    )
+
+    client = _no_retry_client(sensitive_values=(token,))
+    with (
+        caplog.at_level(logging.INFO, logger="feedforbot"),
+        raises(HttpTransportError),
+    ):
+        client.post(url, data={"chat_id": "1"})
+
+    errors = _messages(caplog, "http_error:")
+    assert len(errors) == 1
+    assert token not in errors[0]
+    assert "***" in errors[0]
+
+
+def test_retry_on_429_with_retry_after_header(
+    respx_mock: MockRouter,
+) -> None:
+    route = respx_mock.post(f"{_BASE_URL}/api")
+    route.side_effect = [
+        httpx.Response(
+            429,
+            headers={"Retry-After": "0"},
+            json={"ok": False},
+        ),
+        httpx.Response(200, json={"ok": True}),
+    ]
+    client = HttpClient(max_retries=3, backoff_base=0.01)
+    result = client.post(f"{_BASE_URL}/api", data={})
+    assert result == {"ok": True}
+    expected_calls = 2
+    assert len(route.calls) == expected_calls
+
+
+def test_429_without_retry_after_gives_up(
+    respx_mock: MockRouter,
+) -> None:
+    route = respx_mock.post(f"{_BASE_URL}/api").respond(
+        status_code=429,
+        json={"ok": False},
+    )
+    client = HttpClient(max_retries=3, backoff_base=0.01)
+    with raises(HttpResponseError):
+        client.post(f"{_BASE_URL}/api", data={})
+    assert len(route.calls) == 1
+
+
+def test_429_retry_after_above_cap_gives_up(
+    respx_mock: MockRouter,
+) -> None:
+    route = respx_mock.post(f"{_BASE_URL}/api").respond(
+        status_code=429,
+        headers={"Retry-After": "300"},
+        json={"ok": False},
+    )
+    client = HttpClient(
+        max_retries=3,
+        backoff_base=0.01,
+        max_retry_after=60.0,
+    )
+    with raises(HttpResponseError):
+        client.post(f"{_BASE_URL}/api", data={})
+    assert len(route.calls) == 1
+
+
+def test_429_exhausts_retries(
+    respx_mock: MockRouter,
+) -> None:
+    route = respx_mock.post(f"{_BASE_URL}/api").respond(
+        status_code=429,
+        headers={"Retry-After": "0"},
+        json={"ok": False},
+    )
+    client = HttpClient(
+        max_retries=2,
+        backoff_base=0.01,
+        max_retry_after=60.0,
+    )
+    with raises(HttpResponseError):
+        client.post(f"{_BASE_URL}/api", data={})
+    expected_calls = 2
+    assert len(route.calls) == expected_calls
+
+
+def test_post_raises_on_non_object_json(
+    respx_mock: MockRouter,
+) -> None:
+    respx_mock.post(f"{_BASE_URL}/api").respond(
+        status_code=200,
+        json=["not", "an", "object"],
+    )
+    client = _no_retry_client()
+    with raises(HttpResponseError):
+        client.post(
+            f"{_BASE_URL}/api",
+            data={"key": "value"},
+        )
