@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 Only full releases are listed — pre-release changes are included
 in the next full version entry.
 
-## [Unreleased]
+## [5.0.0] — 2026-04-17
 
 ### Added
 
