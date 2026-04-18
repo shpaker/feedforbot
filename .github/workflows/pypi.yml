@@ -5,22 +5,30 @@ on:
 
 jobs:
   build:
+    name: 📦 Publish to PyPI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - name: 📥 Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: 🧰 Set up uv
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.12"
-      - name: Extract version
+      - name: 🏷️ Extract version
         shell: bash
         run: |
           echo "ver=$(echo ${GITHUB_REF#refs/*/})" >> "$GITHUB_OUTPUT"
         id: extract_version
-      - run: sed -i 's/0.1.0/'"${{ steps.extract_version.outputs.ver }}"'/' pyproject.toml
-      - run: sed -i 's/0.1.0/'"${{ steps.extract_version.outputs.ver }}"'/' feedforbot/__version__.py
-      - run: uv build
-      - run: uv publish
+      - name: ✏️ Patch version in pyproject.toml
+        run: sed -i 's/0.1.0/'"${{ steps.extract_version.outputs.ver }}"'/' pyproject.toml
+      - name: ✏️ Patch version in __version__.py
+        run: sed -i 's/0.1.0/'"${{ steps.extract_version.outputs.ver }}"'/' feedforbot/__version__.py
+      - name: 🏗️ Build package
+        run: uv build
+      - name: 🚀 Publish to PyPI
+        run: uv publish
         env:
           UV_PUBLISH_USERNAME: ${{ secrets.PYPI_LOGIN }}
           UV_PUBLISH_PASSWORD: ${{ secrets.PYPI_PASS }}

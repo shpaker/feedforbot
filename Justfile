@@ -27,4 +27,4 @@ help:
 
 # Deploy tmfeed to VDS
 tmfeed-deploy:
-  set -a && source tmfeed/.env && set +a && ansible-playbook -i tmfeed/inventory.ini tmfeed/deploy.yml
+  set -a && source tmfeed/.env && set +a && ansible-playbook -i tmfeed/inventory.ini tmfeed/deploy.playbook.yml

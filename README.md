@@ -1,47 +1,32 @@
-FeedForBot
-==========
+FeedForBot 📡
+=============
 
 [![PyPI Version](https://img.shields.io/pypi/v/feedforbot.svg)](https://pypi.python.org/pypi/feedforbot)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/feedforbot.svg)](https://pypi.python.org/pypi/feedforbot)
 [![Docker Pulls](https://img.shields.io/docker/pulls/shpaker/feedforbot)](https://hub.docker.com/r/shpaker/feedforbot)
 [![GHCR](https://img.shields.io/badge/GHCR-feedforbot-blue?logo=github)](https://ghcr.io/shpaker/feedforbot)
+[![Lint](https://github.com/shpaker/feedforbot/actions/workflows/lint.yml/badge.svg)](https://github.com/shpaker/feedforbot/actions/workflows/lint.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-Monitors RSS/Atom feeds on a cron schedule and forwards new entries
-to Telegram. Supports multiple feeds, Jinja2 message templates,
-pluggable caching (files, in-memory, Redis) to avoid duplicate
-sends, and optional Sentry integration for error tracking.
+> RSS/Atom in, Telegram out. 🪄 Fresh entries arrive, templated into
+> tidy messages, deduped via your cache of choice — on a cron schedule,
+> with a healthcheck and graceful shutdown baked in.
 
-Features
---------
+✨ Features
+-----------
 
-- **Multiple feeds** — run any number of listener/transport pairs,
-  each with its own cron schedule
-- **Jinja2 templates** — full control over message formatting with
-  access to article fields (`{{ TITLE }}`, `{{ URL }}`, `{{ TEXT }}`,
-  `{{ CATEGORIES }}`, `{{ AUTHORS }}`, etc.). Templates run in a
-  sandbox with HTML autoescape, so article fields with `&`, `<`, `>`
-  are safe by default
-- **Pluggable cache** — files (`~/.feedforbot/`), in-memory, or
-  Redis (shared across instances), selected via `--cache-dsn`;
-  first run populates the cache silently to avoid flooding the
-  channel. Optional `cache_limit` caps retention per scheduler
-- **Built-in healthcheck** — optional HTTP endpoint at `/health`
-  for Docker/Kubernetes probes
-- **Resilient delivery** — Telegram `429 flood-wait` responses are
-  retried automatically after `Retry-After`; malformed feed entries
-  are skipped with a warning instead of failing the whole tick
-- **Graceful shutdown** — `SIGTERM` / `SIGINT` drain in-flight ticks
-  and close HTTP/Redis/file handles cleanly (second signal forces
-  immediate exit)
-- **Sentry integration** — optional error tracking via `sentry-sdk`
-- **Docker ready** — multi-arch images on GHCR and Docker Hub,
-  runs as non-root (`appuser`)
-- **Protocol-driven** — extend with custom listeners, transports,
-  and cache backends by implementing simple protocols
+- 📬 **Multiple feeds** — any number of listeners/transports, each on its own cron
+- 🎨 **Jinja2 templates** — sandbox + HTML autoescape, full access to article fields
+- 💾 **Pluggable cache** — files, in-memory, or Redis; first run silent to avoid flood
+- 🩺 **Healthcheck** — HTTP `/health` for Docker/Kubernetes probes
+- 🛡️ **Resilient delivery** — auto-retry on Telegram flood-wait, skip malformed entries
+- 🧹 **Graceful shutdown** — SIGTERM/SIGINT drain ticks and close handles cleanly
+- 🐛 **Sentry integration** — optional error tracking
+- 🐳 **Docker ready** — multi-arch GHCR + Docker Hub images, runs as non-root
+- 🧩 **Protocol-driven** — custom listeners/transports/caches via simple protocols
 
-Installation
-------------
+📦 Installation
+---------------
 
 Requires **Python 3.10+**.
 
@@ -49,16 +34,16 @@ Requires **Python 3.10+**.
 pip install feedforbot -U
 ```
 
-For the full CLI (Click, structlog, YAML config, Sentry):
+For the full CLI (Click, structlog, YAML config, Sentry, Redis):
 
 ```commandline
 pip install "feedforbot[cli]" -U
 ```
 
-Quick start
------------
+🚀 Quick start
+--------------
 
-### As a library
+### 🐍 As a library
 
 ```python
 from feedforbot import Scheduler, TelegramBotTransport, RSSListener
@@ -74,7 +59,7 @@ scheduler = Scheduler(
 scheduler.run()  # blocks, checks the feed every 5 minutes
 ```
 
-### Async — multiple schedulers
+### ⚡ Async — multiple schedulers
 
 ```python
 import asyncio
@@ -106,7 +91,7 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-### CLI with YAML config
+### 📝 CLI with YAML config
 
 Create a `schedulers.yml` — a top-level list of listener+transport entries:
 
@@ -151,9 +136,9 @@ feedforbot --verbose schedulers.yml
 ```
 
 On the first run the cache is populated without sending messages,
-so existing feed entries won't flood the channel.
+so existing feed entries won't flood the channel. 🤫
 
-#### Config reference
+#### 📋 Config reference
 
 Each list entry supports:
 
@@ -172,7 +157,7 @@ Each list entry supports:
 
 An empty top-level list is rejected at parse time.
 
-#### Cache CLI flag
+#### 💾 Cache CLI flag
 
 Cache backend selection is a CLI concern (not part of the schedulers file).
 `--cache-dsn` takes a URL-style DSN; scheme selects the backend:
@@ -184,7 +169,7 @@ Cache backend selection is a CLI concern (not part of the schedulers file).
 | `memory:` | In-process cache (lost on restart) |
 | `redis://host:6379/0` | Shared Redis cache (requires `feedforbot[cli]` or `pip install redis`). Useful for multi-instance deployments and docker-compose setups where a separate Redis container holds state. |
 
-#### Template variables
+#### 🧩 Template variables
 
 All fields from `ArticleModel` are available in uppercase:
 
@@ -203,7 +188,7 @@ Templates render in a Jinja2 sandbox with HTML autoescape enabled
 `<`, `>` are escaped automatically — you don't need to guard against
 Telegram rejecting the message for invalid HTML.
 
-#### CLI options
+#### 🎛️ CLI options
 
 | Option | Description |
 |--------|-------------|
@@ -215,11 +200,11 @@ Telegram rejecting the message for invalid HTML.
 | `--healthcheck-port` | Port for the HTTP healthcheck server (disabled when unset) |
 | `--healthcheck-host` | Bind host for the healthcheck server; default `127.0.0.1`. Use `0.0.0.0` inside containers when the port is exposed to the host |
 
-Docker
-------
+🐳 Docker
+---------
 
 Images are published to both **GHCR** and **Docker Hub** on every
-release. Tags follow semver: `latest`, `4`, `4.0`, `4.0.0`.
+release. Tags follow semver: `latest`, `5`, `5.0`, `5.0.0`.
 
 ```commandline
 docker run -v $(pwd)/schedulers.yml:/schedulers.yml \
@@ -233,8 +218,8 @@ docker run -v $(pwd)/schedulers.yml:/schedulers.yml \
 
 The container runs as a non-root user (`appuser`).
 
-Healthcheck
------------
+🩺 Healthcheck
+--------------
 
 The CLI includes a built-in HTTP healthcheck server. Pass
 `--healthcheck-port` to expose a lightweight endpoint that responds
@@ -266,8 +251,8 @@ services:
       retries: 3
 ```
 
-Docker Compose with Redis
--------------------------
+🧱 Docker Compose with Redis
+----------------------------
 
 For multi-instance deployments or when you want cache state to
 survive container rebuilds without a host volume for JSON files,
@@ -312,9 +297,9 @@ services:
 ```
 
 A working Ansible playbook that deploys this layout is in
-[tmfeed/deploy.yml](tmfeed/deploy.yml).
+[tmfeed/deploy.playbook.yml](tmfeed/deploy.playbook.yml).
 
-License
--------
+📄 License
+----------
 
 [MIT](LICENSE)
