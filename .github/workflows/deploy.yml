@@ -7,21 +7,92 @@ on:
   push:
     branches: [main]
     paths:
-      - 'tmfeed/config.yml'
+      - 'tmfeed/feedforbot.config.yml'
 
 jobs:
-  deploy:
+  build:
+    name: 🏗️ Build image
     runs-on: ubuntu-latest
     if: >-
-      github.event_name == 'push'
-      || (
-        github.event_name == 'release'
-        && !contains(github.event.release.tag_name, 'rc')
+      github.event_name == 'release'
+      && !contains(github.event.release.tag_name, 'rc')
+    env:
+      REGISTRY_HOST: ghcr.io
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: 🏷️ Extract version
+        shell: bash
+        run: |
+          echo "name=$(echo ${GITHUB_REPOSITORY#*/})" >> "$GITHUB_OUTPUT"
+          echo "ver=$(echo ${GITHUB_REF#refs/*/})" >> "$GITHUB_OUTPUT"
+          echo "minor_ver=$(TMP_VAR=${GITHUB_REF#refs/*/}; echo ${TMP_VAR%.*})" >> "$GITHUB_OUTPUT"
+          echo "major_ver=$(TMP_VAR=${GITHUB_REF#refs/*/}; echo ${TMP_VAR%.*.*})" >> "$GITHUB_OUTPUT"
+        id: extract_name_and_version
+      - name: 🧰 Set up QEMU
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4
+      - name: 🧰 Set up Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+      - name: 🔐 Login to Docker Hub
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_PASS }}
+      - name: 🔐 Login to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
+        with:
+          registry: ${{ env.REGISTRY_HOST }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: ✏️ Patch version in pyproject.toml
+        run: sed -i 's/0.1.0/'"${{ steps.extract_name_and_version.outputs.ver }}"'/' pyproject.toml
+      - name: ✏️ Patch version in __version__.py
+        run: sed -i 's/0.1.0/'"${{ steps.extract_name_and_version.outputs.ver }}"'/' feedforbot/__version__.py
+      - name: 🐳 Build and push image
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            "${{ env.REGISTRY_HOST }}/${{ github.repository }}:latest"
+            "${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.major_ver }}"
+            "${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.minor_ver }}"
+            "${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.ver }}"
+            "${{ github.repository }}:latest"
+            "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.major_ver }}"
+            "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.minor_ver }}"
+            "${{ github.repository }}:${{ steps.extract_name_and_version.outputs.ver }}"
+          labels: |
+            org.opencontainers.image.title=feedforbot
+            org.opencontainers.image.description=Forward links from RSS/Atom feeds to messengers
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.url=https://github.com/${{ github.repository }}
+            org.opencontainers.image.authors=Aleksandr Shpak <shpaker@gmail.com>
+            org.opencontainers.image.version=${{ steps.extract_name_and_version.outputs.ver }}
+            org.opencontainers.image.created=${{ github.event.release.created_at }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
+          provenance: false
+          cache-from: type=registry,ref=${{ env.REGISTRY_HOST }}/${{ github.repository }}:${{ steps.extract_name_and_version.outputs.minor_ver }}
+          cache-to: type=inline
+
+  deploy:
+    name: 🚀 Deploy tmfeed
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: >-
+      always()
+      && (needs.build.result == 'success' || needs.build.result == 'skipped')
+      && (
+        github.event_name == 'push'
+        || !contains(github.event.release.tag_name, 'rc')
       )
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: 📥 Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Determine image tag
+      - name: 🏷️ Determine image tag
         id: image
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
@@ -30,24 +101,24 @@ jobs:
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Set up SSH
+      - name: 🔑 Set up SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ vars.DEPLOY_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Install Ansible
+      - name: 🧰 Install Ansible
         run: pip install ansible
 
-      - name: Run deploy playbook
+      - name: 🚀 Run deploy playbook
         working-directory: tmfeed
         env:
           FEEDFORBOT_TOKEN: ${{ secrets.FEEDFORBOT_TOKEN }}
           FEEDFORBOT_SENTRY: ${{ secrets.FEEDFORBOT_SENTRY }}
           FEEDFORBOT_IMAGE: "ghcr.io/${{ github.repository }}:${{ steps.image.outputs.tag }}"
         run: >-
-          ansible-playbook deploy.yml
+          ansible-playbook deploy.playbook.yml
           -i "${{ vars.DEPLOY_HOST }},"
           -u "${{ vars.DEPLOY_USER }}"
           --private-key ~/.ssh/id_ed25519

@@ -4,7 +4,7 @@
   vars:
     feedforbot_token: "{{ lookup('env', 'FEEDFORBOT_TOKEN') }}"
     feedforbot_sentry: "{{ lookup('env', 'FEEDFORBOT_SENTRY') | default('', true) }}"
-    feedforbot_image: "{{ lookup('env', 'FEEDFORBOT_IMAGE') | default('ghcr.io/shpaker/feedforbot:latest', true) }}"
+    feedforbot_image: "{{ lookup('env', 'FEEDFORBOT_IMAGE') }}"
     feedforbot_dir: "/home/{{ ansible_user }}/feedforbot"
 
   tasks:
@@ -12,6 +12,11 @@
       fail:
         msg: "FEEDFORBOT_TOKEN is not set in .env"
       when: feedforbot_token == ""
+
+    - name: Fail if image is not set
+      fail:
+        msg: "FEEDFORBOT_IMAGE is not set"
+      when: feedforbot_image == ""
 
     - name: Install required packages
       become: true
@@ -62,7 +67,7 @@
 
     - name: Deploy config.yml
       copy:
-        src: "config.yml"
+        src: "feedforbot.config.yml"
         dest: "{{ feedforbot_dir }}/config.yml"
         mode: "0644"
       register: config_changed
@@ -75,41 +80,10 @@
       register: token_injected
 
     - name: Deploy docker-compose.yml
-      copy:
+      template:
+        src: "feedforbot.compose.yml.j2"
         dest: "{{ feedforbot_dir }}/docker-compose.yml"
         mode: "0644"
-        content: |
-          services:
-            redis:
-              image: redis:7-alpine
-              container_name: feedforbot-redis
-              restart: always
-              volumes:
-                - ./redis_data:/data
-              command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
-              healthcheck:
-                test: ["CMD", "redis-cli", "ping"]
-                interval: 10s
-                timeout: 3s
-                retries: 3
-                start_period: 5s
-
-            feedforbot:
-              image: {{ feedforbot_image }}
-              container_name: feedforbot
-              restart: always
-              depends_on:
-                redis:
-                  condition: service_healthy
-              volumes:
-                - ./config.yml:/config.yml:ro
-              command: -v --cache-dsn redis://redis:6379/0 --healthcheck-port 8080 {{ ('--sentry ' + feedforbot_sentry) if feedforbot_sentry != '' else '' }} /config.yml
-              healthcheck:
-                test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
-                interval: 30s
-                timeout: 5s
-                retries: 3
-                start_period: 10s
       register: compose_changed
 
     - name: Start or recreate feedforbot
@@ -150,7 +124,8 @@
 
     - name: Show status
       debug:
-        msg:
-          - "FeedForBot is running!"
-          - "{{ health_result.stdout }}"
-          - "{{ compose_status.stdout }}"
+        msg: "FeedForBot is running! {{ health_result.stdout }}"
+
+    - name: Show docker compose ps
+      debug:
+        var: compose_status.stdout_lines
