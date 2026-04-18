@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 Only full releases are listed — pre-release changes are included
 in the next full version entry.
 
+## [5.1.0] — 2026-04-18
+
+### Added
+
+- `py.typed` marker (PEP 561) — downstream type checkers now pick up inline type annotations shipped with the package
+- PyPI classifiers populated in `pyproject.toml` (Python 3.10–3.14, topics, license, `Typing :: Typed`) — improves discoverability on pypi.org
+- Lint CI status badge in README
+
+### Changed
+
+- README feature list polished and restructured
+- `tmfeed/` deploy artifacts renamed for clarity: `config.yml` → `feedforbot.config.yml`, `deploy.yml` → `deploy.playbook.yml`; new `feedforbot.compose.yml.j2` template; Justfile and deploy workflow updated to match
+- CI: `build.yml` consolidated into `pypi.yml`; lint matrix tweaks
+
 ## [5.0.0] — 2026-04-17
 
 ### Added
