@@ -110,6 +110,16 @@ jobs:
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: ✅ Verify deploy target is configured
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+        run: |
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ]; then
+            echo "::error::DEPLOY_HOST / DEPLOY_USER repo variables are empty — refusing to run a no-op deploy."
+            exit 1
+          fi
+
       - name: 🔑 Set up SSH
         run: |
           mkdir -p ~/.ssh

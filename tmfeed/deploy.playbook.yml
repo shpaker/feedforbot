@@ -1,6 +1,9 @@
 ---
 - name: Deploy FeedForBot
-  hosts: vds
+  # CI passes the host inline via `-i "<host>,"`, which lands it in the
+  # implicit `all` group, not `vds`. Targeting `vds` matched no hosts, so
+  # the playbook was silently skipped and deploys became no-ops.
+  hosts: all
   vars:
     feedforbot_token: "{{ lookup('env', 'FEEDFORBOT_TOKEN') }}"
     feedforbot_sentry: "{{ lookup('env', 'FEEDFORBOT_SENTRY') | default('', true) }}"
