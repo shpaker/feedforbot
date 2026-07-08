@@ -35,6 +35,24 @@
         state: started
         enabled: true
 
+    - name: Configure Docker daemon log rotation
+      become: true
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "10m",
+              "max-file": "3"
+            }
+          }
+        mode: "0644"
+      notify: Restart docker
+
+    - name: Apply Docker daemon changes before starting containers
+      meta: flush_handlers
+
     - name: Add user to docker group
       become: true
       user:
@@ -129,3 +147,10 @@
     - name: Show docker compose ps
       debug:
         var: compose_status.stdout_lines
+
+  handlers:
+    - name: Restart docker
+      become: true
+      systemd:
+        name: docker
+        state: restarted

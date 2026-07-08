@@ -7,7 +7,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'tmfeed/feedforbot.config.yml'
+      - 'tmfeed/**'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'feedforbot image tag to deploy (default: latest)'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -86,6 +92,7 @@ jobs:
       && (needs.build.result == 'success' || needs.build.result == 'skipped')
       && (
         github.event_name == 'push'
+        || github.event_name == 'workflow_dispatch'
         || !contains(github.event.release.tag_name, 'rc')
       )
     steps:
@@ -97,6 +104,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
             echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
           else
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
