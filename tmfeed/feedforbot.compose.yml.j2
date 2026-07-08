@@ -6,6 +6,11 @@ services:
     volumes:
       - ./redis_data:/data
     command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -23,6 +28,11 @@ services:
     volumes:
       - ./config.yml:/config.yml:ro
     command: -v --cache-dsn redis://redis:6379/0 --healthcheck-port 8080 {{ ('--sentry ' + feedforbot_sentry) if feedforbot_sentry != '' else '' }} /config.yml
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
       interval: 30s
