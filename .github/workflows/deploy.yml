@@ -120,12 +120,56 @@ jobs:
             exit 1
           fi
 
-      - name: 🔑 Set up SSH
+      - name: ✅ Verify SSH configuration
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          if [ -z "$DEPLOY_SSH_KEY" ]; then
+            echo "::error::DEPLOY_SSH_KEY secret is empty."
+            exit 1
+          fi
+          if [ -z "$DEPLOY_KNOWN_HOSTS" ]; then
+            echo "::error::DEPLOY_KNOWN_HOSTS secret is empty. Add the verified VDS SSH host key in known_hosts format."
+            exit 1
+          fi
+
+      - name: 🔑 Set up SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ vars.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: 🔎 Verify SSH access
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+        run: |
+          for attempt in 1 2 3; do
+            if ssh \
+              -i ~/.ssh/id_ed25519 \
+              -o BatchMode=yes \
+              -o ConnectionAttempts=1 \
+              -o ConnectTimeout=15 \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              "$DEPLOY_USER@$DEPLOY_HOST" true; then
+              echo "SSH preflight succeeded."
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "SSH preflight attempt $attempt failed; retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+          echo "::error::SSH preflight failed after 3 attempts. Check sshd, host firewall, fail2ban, provider firewall, and DEPLOY_KNOWN_HOSTS."
+          exit 1
 
       - name: 🧰 Install Ansible
         run: pip install ansible
