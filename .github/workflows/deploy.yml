@@ -123,21 +123,21 @@ jobs:
       - name: ✅ Verify SSH configuration
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
         run: |
           if [ -z "$DEPLOY_SSH_KEY" ]; then
             echo "::error::DEPLOY_SSH_KEY secret is empty."
             exit 1
           fi
           if [ -z "$DEPLOY_KNOWN_HOSTS" ]; then
-            echo "::error::DEPLOY_KNOWN_HOSTS secret is empty. Add the verified VDS SSH host key in known_hosts format."
+            echo "::error::DEPLOY_KNOWN_HOSTS repository variable is empty. Add the verified VDS SSH host key in known_hosts format."
             exit 1
           fi
 
       - name: 🔑 Set up SSH
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
         run: |
           install -d -m 700 ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
