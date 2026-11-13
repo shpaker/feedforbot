@@ -2,7 +2,7 @@
 - listener:
     type: 'rss'
     params:
-      url: 'https://habr.com/ru/rss/all/all/?fl=ru&limit=100'
+      url: 'https://habr.com/ru/rss/articles/?fl=ru&limit=100'
   transport:
     type: 'telegram_bot'
     params:
